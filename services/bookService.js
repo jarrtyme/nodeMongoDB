@@ -25,7 +25,7 @@ const find = async (query, page = 1, limit = 10) => {
 
 async function update(bookId, updateFields) {
   try {
-    const updatedBook = await Book.findByIdAndUpdate(
+    const updatedBook = await BookModel.findByIdAndUpdate(
       bookId,
       { $set: updateFields }, // 使用 $set 来进行部分更新
       { new: true, runValidators: true } // 返回更新后的文档，并运行验证

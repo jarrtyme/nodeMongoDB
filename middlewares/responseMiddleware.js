@@ -12,8 +12,15 @@ const responseMiddleware = (req, res, next) => {
   }
   next()
 }
+const methodCheckMiddleware = (allowedMethods) => (req, res, next) => {
+  if (!allowedMethods.includes(req.method)) {
+    return res.status(401).json({ success: false, message: 'Unauthorized request method' })
+  }
+  next()
+}
 
 module.exports = {
   reqMiddleware,
+  methodCheckMiddleware,
   responseMiddleware
 }

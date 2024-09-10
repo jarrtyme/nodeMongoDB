@@ -13,6 +13,7 @@ router.post('/create', async (req, res) => {
     res.error('Failed to create book', 500) // 使用 res.error 格式化错误响应
   }
 })
+
 // 删除书籍+
 router.post('/remove', async (req, res) => {
   try {
@@ -25,8 +26,9 @@ router.post('/remove', async (req, res) => {
     res.error('Failed to create book', 500) // 使用 res.error 格式化错误响应
   }
 })
+
 // 更新书籍 +
-router.patch('/update', async (req, res) => {
+router.post('/update', async (req, res) => {
   try {
     const updatedBook = await BookService.update(req.body.id, req.body)
     if (!updatedBook) {
@@ -38,6 +40,7 @@ router.patch('/update', async (req, res) => {
     res.error('Failed to update book', 500) // 其他错误返回 500 错误
   }
 })
+
 // 查找书籍 +
 router.post('/find', async (req, res) => {
   const { page = 1, limit = 10, ...query } = req.body // 从请求体中提取分页参数和查询条件
