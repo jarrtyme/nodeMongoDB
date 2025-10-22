@@ -4,20 +4,23 @@ const path = require('path')
 const cookieParser = require('cookie-parser')
 const logger = require('morgan')
 
-const { responseMiddleware, methodCheckMiddleware } = require('./middlewares/responseMiddleware')
+// 只在非测试环境中连接数据库
+if (process.env.NODE_ENV !== 'test') {
+  const connectDB = require('./src/config/dbConnect')
+  connectDB()
+}
 
-const indexRouter = require('./routes/index')
-const usersRouter = require('./routes/users')
-const bookRoutes = require('./routes/bookRoutes') // 引入路由文件
-// console.log(bookRoutes)
+const { responseMiddleware, methodCheckMiddleware } = require('./src/middlewares/responseMiddleware')
+
+const clothingRoutes = require('./src/routes/clothingRoutes') // 引入服装路由文件
+const uploadRoutes = require('./src/routes/uploadRoutes') // 引入图片上传路由文件
+const authRoutes = require('./src/routes/authRoutes') // 引入认证路由文件
 
 const app = express()
 
-// view engine setup
-app.set('views', path.join(__dirname, 'views'))
-app.set('view engine', 'jade')
+// API应用，不需要视图引擎
 // 定义允许的请求方法
-app.use(methodCheckMiddleware(['GET', 'POST']))
+app.use(methodCheckMiddleware(['POST']))
 app.use(responseMiddleware)
 app.use(logger('dev'))
 app.use(express.json())
@@ -25,9 +28,12 @@ app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 app.use(express.static(path.join(__dirname, 'public')))
 
-app.use('/', indexRouter)
-app.use('/users', usersRouter)
-app.use('/book', bookRoutes)
+// 认证路由（无需鉴权）
+app.use('/auth', authRoutes)
+
+// 业务路由（需要鉴权）
+app.use('/clothing', clothingRoutes)
+app.use('/upload', uploadRoutes)
 
 // catch 404 and forward to error handler
 app.use('*', function (req, res, next) {
@@ -39,12 +45,12 @@ app.use((req, res) => {
 
 // error handler
 app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message
-  res.locals.error = req.app.get('env') === 'development' ? err : {}
-  // render the error page
-  res.status(err.status || 500)
-  res.render('error')
+  // 返回JSON错误响应
+  res.status(err.status || 500).json({
+    code: err.status || 500,
+    message: err.message || 'Internal Server Error',
+    data: null
+  })
 })
 
 module.exports = app
