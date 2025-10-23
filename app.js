@@ -1,3 +1,6 @@
+// 加载环境变量
+require('dotenv').config()
+
 const createError = require('http-errors')
 const express = require('express')
 const path = require('path')

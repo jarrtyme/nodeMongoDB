@@ -1,1 +1,34 @@
-/node_modules
+# Dependencies
+node_modules/
+
+# Testing
+coverage/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads (keep directory, ignore files)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Build artifacts
+dist/
+build/

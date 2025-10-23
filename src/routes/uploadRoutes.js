@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const path = require('path')
 const fs = require('fs')
-const { upload, handleUploadError } = require('../middlewares/uploadMiddleware')
+const { upload, fileUpload, handleUploadError, getFileType, uploadDir } = require('../middlewares/uploadMiddleware')
 const { authenticateToken } = require('../middlewares/authMiddleware')
 
 // 所有上传路由都需要鉴权
@@ -211,6 +211,101 @@ router.post('/list', (req, res) => {
       data: null
     })
     }
+})
+
+/**
+ * 单个文件上传接口（通用）
+ * POST /upload/file
+ * 支持图片、文档、压缩包等多种文件类型
+ */
+router.post('/file', fileUpload.single('file'), handleUploadError, (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        code: 400,
+        message: '请选择要上传的文件',
+        data: null
+      })
+    }
+
+    const fileInfo = {
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      path: `/uploads/${req.file.filename}`,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      fileType: getFileType(req.file.mimetype),
+      uploadTime: new Date().toISOString()
+    }
+
+    res.json({
+      code: 200,
+      message: '文件上传成功',
+      data: fileInfo
+    })
+
+  } catch (error) {
+    console.error('文件上传错误:', error)
+    res.status(500).json({
+      code: 500,
+      message: '文件上传失败',
+      data: null
+    })
+  }
+})
+
+/**
+ * 批量文件上传接口（通用）
+ * POST /upload/files
+ * 支持多文件上传，支持多种文件类型
+ */
+router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '请选择要上传的文件',
+        data: null
+      })
+    }
+
+    const uploadedFiles = req.files.map(file => {
+      return {
+        originalName: file.originalname,
+        filename: file.filename,
+        path: `/uploads/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype,
+        fileType: getFileType(file.mimetype),
+        uploadTime: new Date().toISOString()
+      }
+    })
+
+    // 按文件类型分组统计
+    const fileTypeCount = uploadedFiles.reduce((acc, file) => {
+      acc[file.fileType] = (acc[file.fileType] || 0) + 1
+      return acc
+    }, {})
+
+    res.json({
+      code: 200,
+      message: `成功上传 ${uploadedFiles.length} 个文件`,
+      data: {
+        files: uploadedFiles,
+        count: uploadedFiles.length,
+        totalSize: uploadedFiles.reduce((sum, file) => sum + file.size, 0),
+        typeCount: fileTypeCount
+      }
+    })
+
+  } catch (error) {
+    console.error('批量文件上传错误:', error)
+    res.status(500).json({
+      code: 500,
+      message: '批量文件上传失败',
+      data: null
+    })
+  }
 })
 
 module.exports = router
