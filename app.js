@@ -6,6 +6,7 @@ const express = require('express')
 const path = require('path')
 const cookieParser = require('cookie-parser')
 const logger = require('morgan')
+const cors = require('cors')
 
 // 只在非测试环境中连接数据库
 if (process.env.NODE_ENV !== 'test') {
@@ -13,7 +14,10 @@ if (process.env.NODE_ENV !== 'test') {
   connectDB()
 }
 
-const { responseMiddleware, methodCheckMiddleware } = require('./src/middlewares/responseMiddleware')
+const {
+  responseMiddleware,
+  methodCheckMiddleware
+} = require('./src/middlewares/responseMiddleware')
 
 const clothingRoutes = require('./src/routes/clothingRoutes') // 引入服装路由文件
 const uploadRoutes = require('./src/routes/uploadRoutes') // 引入图片上传路由文件
@@ -21,9 +25,18 @@ const authRoutes = require('./src/routes/authRoutes') // 引入认证路由文�
 
 const app = express()
 
+// 配置跨域 - 允许所有请求
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || '*', // 允许的源，开发环境可以用 *，生产环境建议指定具体域名
+    credentials: true, // 允许携带凭证（cookies等）
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'], // 允许所有HTTP方法
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'] // 允许所有常用请求头
+  })
+)
+
 // API应用，不需要视图引擎
-// 定义允许的请求方法
-app.use(methodCheckMiddleware(['POST']))
+// 允许所有HTTP方法（已移除方法限制）
 app.use(responseMiddleware)
 app.use(logger('dev'))
 app.use(express.json())
