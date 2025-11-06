@@ -80,6 +80,42 @@ MONGODB_PASSWORD=your-password
 MONGODB_AUTH_SOURCE=admin
 ```
 
+**重要说明：`MONGODB_AUTH_SOURCE` 配置**
+
+`MONGODB_AUTH_SOURCE` 指定用于认证的数据库名称。这是 MongoDB 认证的关键配置：
+
+- **默认值**：如果不设置 `MONGODB_AUTH_SOURCE`，系统会默认使用 `MONGODB_DATABASE` 的值
+- **常见值**：
+  - `admin`：如果用户是在 MongoDB 的 `admin` 数据库中创建的（最常见）
+  - 数据库名：如果用户是在目标数据库中创建的（如 `zhibo`、`clothing_inventory` 等）
+- **如何确定**：查看 MongoDB 中用户是在哪个数据库中创建的，就设置对应的 `authSource`
+
+**示例配置（用户在不同数据库中创建的情况）**
+
+如果用户 `zhibo` 是在 `zhibo` 数据库中创建的：
+
+```env
+NODE_ENV=production
+MONGODB_HOST=193.111.30.228
+MONGODB_PORT=27017
+MONGODB_DATABASE=zhibo
+MONGODB_USER=zhibo
+MONGODB_PASSWORD=your-password
+MONGODB_AUTH_SOURCE=zhibo
+```
+
+如果用户是在 `admin` 数据库中创建的：
+
+```env
+NODE_ENV=production
+MONGODB_HOST=193.111.30.228
+MONGODB_PORT=27017
+MONGODB_DATABASE=zhibo
+MONGODB_USER=zhibo
+MONGODB_PASSWORD=your-password
+MONGODB_AUTH_SOURCE=admin
+```
+
 ### 启动应用
 
 **开发环境**

@@ -14,7 +14,9 @@ const getMongoUrl = () => {
   const database = process.env.MONGODB_DATABASE || 'clothing_inventory'
   const user = process.env.MONGODB_USER
   const password = process.env.MONGODB_PASSWORD
-  const authSource = process.env.MONGODB_AUTH_SOURCE || 'admin'
+  // authSource 默认使用数据库名（如果用户是在该数据库中创建的）
+  // 如果用户是在 admin 数据库中创建的，需要在环境变量中明确指定 MONGODB_AUTH_SOURCE=admin
+  const authSource = process.env.MONGODB_AUTH_SOURCE || database
 
   // 如果有用户名和密码，使用认证连接（生产环境通常需要）
   if (user && password) {
@@ -61,7 +63,8 @@ const getConnectionOptions = () => {
 
   // 如果有认证信息，添加认证选项
   if (process.env.MONGODB_USER && process.env.MONGODB_PASSWORD) {
-    options.authSource = process.env.MONGODB_AUTH_SOURCE || 'admin'
+    const database = process.env.MONGODB_DATABASE || 'clothing_inventory'
+    options.authSource = process.env.MONGODB_AUTH_SOURCE || database
   }
 
   return options
