@@ -1,0 +1,468 @@
+// 注意：Element Plus 基础样式已在 main.js 中导入
+// Element Plus 变量覆盖也在 main.js 中最后导入，确保优先级
+// 这里只需要导入变量和全局样式
+
+@import './variables.scss';
+
+// ==================== CSS 重置 ====================
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// ==================== HTML & Body ====================
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  font-size: $font-size-md;
+  line-height: 1.5;
+  color: $text-color;
+  background-color: $bg-color-page;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+// ==================== 应用容器 ====================
+#app {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+}
+
+// ==================== 链接样式 ====================
+a {
+  color: $primary-color;
+  text-decoration: none;
+  transition: $transition-base;
+
+  &:hover {
+    color: lighten($primary-color, 10%);
+  }
+
+  &:active {
+    color: darken($primary-color, 10%);
+  }
+}
+
+// ==================== 标题样式 ====================
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  line-height: 1.5;
+  color: $text-color;
+  margin: 0;
+}
+
+h1 {
+  font-size: $font-size-xxl;
+}
+
+h2 {
+  font-size: $font-size-xl;
+}
+
+h3 {
+  font-size: $font-size-lg;
+}
+
+h4 {
+  font-size: $font-size-md;
+}
+
+h5 {
+  font-size: $font-size-sm;
+}
+
+h6 {
+  font-size: $font-size-xs;
+}
+
+// ==================== 文本样式 ====================
+p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+// ==================== 列表样式 ====================
+ul,
+ol {
+  list-style: none;
+}
+
+// ==================== 图片样式 ====================
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 0;
+}
+
+// ==================== 表单元素 ====================
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+input,
+textarea {
+  &::placeholder {
+    color: $text-color-placeholder;
+  }
+}
+
+// ==================== 表格样式 ====================
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+// ==================== 滚动条样式 ====================
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-color-page;
+  border-radius: $border-radius-md;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $border-color;
+  border-radius: $border-radius-md;
+  transition: $transition-base;
+
+  &:hover {
+    background: $text-color-secondary;
+  }
+}
+
+// ==================== 选择文本样式 ====================
+::selection {
+  background-color: rgba($primary-color, 0.2);
+  color: $text-color;
+}
+
+::-moz-selection {
+  background-color: rgba($primary-color, 0.2);
+  color: $text-color;
+}
+
+// ==================== 工具类 ====================
+
+// 清除浮动
+.clearfix {
+  &::before,
+  &::after {
+    content: '';
+    display: table;
+  }
+
+  &::after {
+    clear: both;
+  }
+}
+
+// 文本省略
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// 文本对齐
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+// 文本颜色
+.text-primary {
+  color: $primary-color;
+}
+
+.text-success {
+  color: $success-color;
+}
+
+.text-warning {
+  color: $warning-color;
+}
+
+.text-danger {
+  color: $danger-color;
+}
+
+.text-info {
+  color: $info-color;
+}
+
+.text-muted {
+  color: $text-color-secondary;
+}
+
+// 显示/隐藏
+.hidden {
+  display: none !important;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+// 浮动
+.pull-left {
+  float: left;
+}
+
+.pull-right {
+  float: right;
+}
+
+// 定位
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+// Flex 布局
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-around {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+// 间距工具类
+@for $i from 0 through 10 {
+  .m-#{$i} {
+    margin: #{$i * 4}px;
+  }
+
+  .mt-#{$i} {
+    margin-top: #{$i * 4}px;
+  }
+
+  .mr-#{$i} {
+    margin-right: #{$i * 4}px;
+  }
+
+  .mb-#{$i} {
+    margin-bottom: #{$i * 4}px;
+  }
+
+  .ml-#{$i} {
+    margin-left: #{$i * 4}px;
+  }
+
+  .mx-#{$i} {
+    margin-left: #{$i * 4}px;
+    margin-right: #{$i * 4}px;
+  }
+
+  .my-#{$i} {
+    margin-top: #{$i * 4}px;
+    margin-bottom: #{$i * 4}px;
+  }
+
+  .p-#{$i} {
+    padding: #{$i * 4}px;
+  }
+
+  .pt-#{$i} {
+    padding-top: #{$i * 4}px;
+  }
+
+  .pr-#{$i} {
+    padding-right: #{$i * 4}px;
+  }
+
+  .pb-#{$i} {
+    padding-bottom: #{$i * 4}px;
+  }
+
+  .pl-#{$i} {
+    padding-left: #{$i * 4}px;
+  }
+
+  .px-#{$i} {
+    padding-left: #{$i * 4}px;
+    padding-right: #{$i * 4}px;
+  }
+
+  .py-#{$i} {
+    padding-top: #{$i * 4}px;
+    padding-bottom: #{$i * 4}px;
+  }
+}
+
+// 响应式工具类
+@media (max-width: $breakpoint-sm) {
+  .hidden-xs {
+    display: none !important;
+  }
+}
+
+@media (min-width: $breakpoint-sm) and (max-width: $breakpoint-md) {
+  .hidden-sm {
+    display: none !important;
+  }
+}
+
+@media (min-width: $breakpoint-md) and (max-width: $breakpoint-lg) {
+  .hidden-md {
+    display: none !important;
+  }
+}
+
+@media (min-width: $breakpoint-lg) {
+  .hidden-lg {
+    display: none !important;
+  }
+}
+
+// ==================== 动画 ====================
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translate3d(0, -100%, 0);
+    opacity: 0;
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: $transition-fade;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

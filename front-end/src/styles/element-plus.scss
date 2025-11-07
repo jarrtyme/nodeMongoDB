@@ -1,0 +1,62 @@
+// Element Plus 样式变量覆盖
+// 使用 CSS 变量来定制 Element Plus 主题
+// 注意：这个文件在 main.js 中最后导入，确保变量覆盖 Element Plus 的默认值
+
+// ==================== 组件样式覆盖 ====================
+// Element Plus 在组件样式中定义了变量（如 --el-header-padding: 0 20px;）
+// 这些变量在组件作用域内，优先级比 :root 高
+// 我们需要在组件上直接覆盖这些变量
+
+.el-header {
+  // 在组件上重新定义变量，覆盖 Element Plus 组件中的变量定义
+  --el-header-padding: 0px;
+  --el-header-height: 60px;
+  --el-header-bg-color: transparent;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: $z-index-top;
+}
+
+.el-main {
+  --el-main-padding: 0px;
+  --el-main-bg-color: var(--el-bg-color-page);
+}
+
+.el-footer {
+  max-width: 1920px;
+  margin: 0 auto;
+  background-color: transparent;
+  backdrop-filter: blur(20px);
+  --el-footer-padding: 0 20px;
+  --el-footer-height: 60px;
+  --el-footer-bg-color: var(--el-bg-color);
+}
+.el-menu{
+  background-color: transparent;
+  backdrop-filter: blur(20px);
+}
+.el-menu--horizontal.el-menu{
+  border-bottom:initial
+}
+
+// ==================== 暗色主题（可选） ====================
+// 如果需要暗色主题，可以取消注释并配置
+// html.dark {
+//   --el-bg-color-page: #0a0a0a;
+//   --el-text-color-primary: #e5eaf3;
+//   --el-text-color-regular: #cfd3dc;
+//   --el-text-color-secondary: #a3a6ad;
+//   --el-text-color-placeholder: #6c6e72;
+//   --el-border-color: #4c4d4f;
+//   --el-border-color-light: #414243;
+//   --el-border-color-lighter: #363637;
+//   --el-fill-color: #303133;
+//   --el-fill-color-light: #262727;
+//   --el-fill-color-lighter: #1d1d1d;
+//   --el-fill-color-extra-light: #131313;
+//   --el-fill-color-blank: transparent;
+//   --el-bg-color: #1d1e1f;
+//   --el-bg-color-page: #0a0a0a;
+//   --el-bg-color-overlay: #1d1e1f;
+// }
