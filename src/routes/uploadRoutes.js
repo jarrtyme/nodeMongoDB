@@ -13,7 +13,7 @@ router.use(authenticateToken)
  * POST /upload/images
  * 支持多文件上传，返回上传成功的文件信息
  */
-router.post('/images', upload.array('images', 10), handleUploadError, (req, res) => {
+router.post('/images', upload.array('file', 10), handleUploadError, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
@@ -60,7 +60,7 @@ router.post('/images', upload.array('images', 10), handleUploadError, (req, res)
  * POST /upload/image
  * 上传单个图片文件
  */
-router.post('/image', upload.single('image'), handleUploadError, (req, res) => {
+router.post('/image', upload.single('file'), handleUploadError, (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
