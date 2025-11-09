@@ -115,8 +115,12 @@ function getFileUrl(filePath, req = null) {
 function addFileUrl(fileData, req = null) {
   if (Array.isArray(fileData)) {
     return fileData.map((file) => {
-      // 优先使用 path，如果没有则根据 filename 生成 path
-      const filePath = file.path || (file.filename ? `/uploads/${file.filename}` : '')
+      // 如果已经有完整的URL（以http://或https://开头），直接返回
+      if (file.url && (file.url.startsWith('http://') || file.url.startsWith('https://'))) {
+        return file
+      }
+      // 优先使用 path 或已有的 url，如果没有则根据 filename 生成 path
+      const filePath = file.path || file.url || (file.filename ? `/uploads/${file.filename}` : '')
       return {
         ...file,
         url: getFileUrl(filePath, req)
@@ -125,8 +129,16 @@ function addFileUrl(fileData, req = null) {
   }
 
   if (fileData && typeof fileData === 'object') {
-    // 优先使用 path，如果没有则根据 filename 生成 path
-    const filePath = fileData.path || (fileData.filename ? `/uploads/${fileData.filename}` : '')
+    // 如果已经有完整的URL（以http://或https://开头），直接返回
+    if (
+      fileData.url &&
+      (fileData.url.startsWith('http://') || fileData.url.startsWith('https://'))
+    ) {
+      return fileData
+    }
+    // 优先使用 path 或已有的 url，如果没有则根据 filename 生成 path
+    const filePath =
+      fileData.path || fileData.url || (fileData.filename ? `/uploads/${fileData.filename}` : '')
     return {
       ...fileData,
       url: getFileUrl(filePath, req)

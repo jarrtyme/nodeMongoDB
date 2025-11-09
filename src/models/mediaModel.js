@@ -1,0 +1,85 @@
+const mongoose = require('mongoose')
+
+/**
+ * 媒体库数据模型
+ *
+ * 用于管理官网的图片和视频资源，以及对应的描述信息
+ * - 支持图片和视频两种媒体类型
+ * - 每个媒体可以有多个描述（数组）
+ * - 描述可以动态添加和删除
+ */
+const MediaSchema = new mongoose.Schema({
+  // 媒体类型：'image' 或 'video'
+  type: {
+    type: String,
+    required: true,
+    enum: ['image', 'video'],
+    trim: true
+  },
+  // 媒体文件URL
+  url: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  // 原始文件名
+  filename: {
+    type: String,
+    default: ''
+  },
+  // 文件大小（字节）
+  size: {
+    type: Number,
+    default: 0
+  },
+  // MIME类型
+  mimetype: {
+    type: String,
+    default: ''
+  },
+  // 描述数组 - 可以添加多个描述
+  descriptions: {
+    type: [
+      {
+        text: {
+          type: String,
+          required: true,
+          trim: true
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ],
+    default: []
+  },
+  // 创建时间
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  // 更新时间
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+})
+
+// 保存前中间件：自动更新修改时间
+MediaSchema.pre('save', function (next) {
+  this.updatedAt = new Date()
+  next()
+})
+
+// 更新前中间件：自动更新修改时间
+MediaSchema.pre('findOneAndUpdate', function (next) {
+  this.set({ updatedAt: new Date() })
+  next()
+})
+
+// 创建 Mongoose 模型实例
+const MediaModel = mongoose.model('Media', MediaSchema)
+
+// 导出模型供其他模块使用
+module.exports = MediaModel

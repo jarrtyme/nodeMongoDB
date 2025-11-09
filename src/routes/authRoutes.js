@@ -208,13 +208,34 @@ router.post('/verify', authenticateToken, refreshTokenIfNeeded, async (req, res)
  */
 router.post('/users', authenticateToken, refreshTokenIfNeeded, requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 10, ...query } = req.body
-    const result = await UserService.getUserList(query, page, limit)
+    const { page = 1, limit = 10, username, email, ...query } = req.body
+
+    // 构建查询条件
+    const searchQuery = { ...query }
+
+    // 如果提供了搜索关键词（用户名或邮箱），使用 $or 查询
+    if (username || email) {
+      const searchKeyword = username || email
+      searchQuery.$or = [
+        { username: { $regex: searchKeyword, $options: 'i' } },
+        { email: { $regex: searchKeyword, $options: 'i' } }
+      ]
+    }
+
+    const result = await UserService.getUserList(searchQuery, page, limit)
 
     res.json({
       code: 200,
       message: '获取用户列表成功',
-      data: result
+      data: {
+        users: result.users,
+        list: result.users, // 兼容别名
+        total: result.pagination.total,
+        count: result.pagination.total, // 兼容别名
+        page: result.pagination.page,
+        limit: result.pagination.limit,
+        pages: result.pagination.pages
+      }
     })
   } catch (error) {
     console.error('获取用户列表失败:', error)
@@ -300,6 +321,41 @@ router.post(
       res.status(400).json({
         code: 400,
         message: error.message || '更新用户状态失败',
+        data: null
+      })
+    }
+  }
+)
+
+/**
+ * 更新用户信息（仅管理员）
+ * POST /auth/users/:userId/update
+ */
+router.post(
+  '/users/:userId/update',
+  authenticateToken,
+  refreshTokenIfNeeded,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { userId } = req.params
+      const updateData = req.body
+
+      // 不允许修改密码（密码修改有单独的接口）
+      delete updateData.password
+
+      const user = await UserService.updateUser(userId, updateData)
+
+      res.json({
+        code: 200,
+        message: '更新用户信息成功',
+        data: { user }
+      })
+    } catch (error) {
+      console.error('更新用户信息失败:', error)
+      res.status(400).json({
+        code: 400,
+        message: error.message || '更新用户信息失败',
         data: null
       })
     }
