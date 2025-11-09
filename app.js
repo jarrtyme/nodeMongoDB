@@ -31,7 +31,8 @@ app.use(
     origin: process.env.CORS_ORIGIN || '*', // 允许的源，开发环境可以用 *，生产环境建议指定具体域名
     credentials: true, // 允许携带凭证（cookies等）
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'], // 允许所有HTTP方法
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'] // 允许所有常用请求头
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'], // 允许所有常用请求头
+    exposedHeaders: ['X-New-Token'] // 允许前端读取响应头中的 X-New-Token（用于无感刷新 token）
   })
 )
 

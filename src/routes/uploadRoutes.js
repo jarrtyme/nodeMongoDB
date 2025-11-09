@@ -2,11 +2,18 @@ const express = require('express')
 const router = express.Router()
 const path = require('path')
 const fs = require('fs')
-const { upload, fileUpload, handleUploadError, getFileType, uploadDir } = require('../middlewares/uploadMiddleware')
-const { authenticateToken } = require('../middlewares/authMiddleware')
+const {
+  upload,
+  fileUpload,
+  handleUploadError,
+  getFileType,
+  uploadDir
+} = require('../middlewares/uploadMiddleware')
+const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/authMiddleware')
 
-// 所有上传路由都需要鉴权
+// 所有上传路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
+router.use(refreshTokenIfNeeded)
 
 /**
  * 批量上传图片接口
@@ -24,7 +31,7 @@ router.post('/images', upload.array('file', 10), handleUploadError, (req, res) =
     }
 
     // 处理上传的文件
-    const uploadedFiles = req.files.map(file => {
+    const uploadedFiles = req.files.map((file) => {
       return {
         originalName: file.originalname,
         filename: file.filename,
@@ -44,7 +51,6 @@ router.post('/images', upload.array('file', 10), handleUploadError, (req, res) =
         totalSize: uploadedFiles.reduce((sum, file) => sum + file.size, 0)
       }
     })
-
   } catch (error) {
     console.error('图片上传错误:', error)
     res.status(500).json({
@@ -84,7 +90,6 @@ router.post('/image', upload.single('file'), handleUploadError, (req, res) => {
       message: '图片上传成功',
       data: uploadedFile
     })
-
   } catch (error) {
     console.error('图片上传错误:', error)
     res.status(500).json({
@@ -96,14 +101,14 @@ router.post('/image', upload.single('file'), handleUploadError, (req, res) => {
 })
 
 /**
- * 删除图片接口
+ * 删除文件接口（通用，支持所有文件类型）
  * POST /upload/delete
- * 删除指定的图片文件
+ * 删除指定的文件（图片、文档、压缩包等）
  */
 router.post('/delete', (req, res) => {
   try {
     const { filename } = req.body
-    
+
     if (!filename) {
       return res.status(400).json({
         code: 400,
@@ -111,9 +116,10 @@ router.post('/delete', (req, res) => {
         data: null
       })
     }
-    
+
     // 验证文件名格式（防止路径遍历攻击）
-    if (!/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(filename)) {
+    // 允许文件名包含点、下划线、连字符和字母数字
+    if (!/^[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+$/.test(filename)) {
       return res.status(400).json({
         code: 400,
         message: '无效的文件名',
@@ -122,7 +128,7 @@ router.post('/delete', (req, res) => {
     }
 
     const filePath = path.join(__dirname, '../../public/uploads', filename)
-    
+
     // 检查文件是否存在
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({
@@ -137,81 +143,125 @@ router.post('/delete', (req, res) => {
 
     res.json({
       code: 200,
-      message: '图片删除成功',
+      message: '文件删除成功',
       data: {
         filename: filename,
         deletedAt: new Date().toISOString()
       }
     })
-
   } catch (error) {
-    console.error('图片删除错误:', error)
+    console.error('文件删除错误:', error)
     res.status(500).json({
       code: 500,
-      message: '图片删除失败',
+      message: '文件删除失败',
       data: null
     })
   }
 })
 
 /**
- * 获取上传的图片列表
+ * 获取上传的文件列表（所有文件类型）
  * POST /upload/list
- * 返回所有已上传的图片信息
+ * 返回所有已上传的文件信息（包括图片、文档、压缩包等）
  */
 router.post('/list', (req, res) => {
   try {
     const uploadDir = path.join(__dirname, '../../public/uploads')
-    
+
     if (!fs.existsSync(uploadDir)) {
       return res.json({
         code: 200,
-        message: '暂无上传的图片',
+        message: '暂无上传的文件',
         data: {
           images: [],
+          files: [],
           count: 0
         }
       })
     }
 
     const files = fs.readdirSync(uploadDir)
-    const imageFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase()
-      return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)
-    })
 
-    const images = imageFiles.map(filename => {
+    // 获取所有文件信息
+    const allFiles = files.map((filename) => {
       const filePath = path.join(uploadDir, filename)
       const stats = fs.statSync(filePath)
-      
+      const ext = path.extname(filename).toLowerCase()
+
+      // 判断文件类型
+      let fileType = 'other'
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+        fileType = 'image'
+      } else if (['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].includes(ext)) {
+        fileType = 'document'
+      } else if (['.zip', '.rar', '.7z'].includes(ext)) {
+        fileType = 'archive'
+      } else if (['.txt', '.csv'].includes(ext)) {
+        fileType = 'text'
+      }
+
       return {
         filename: filename,
+        originalName: filename, // 兼容旧接口
         path: `/uploads/${filename}`,
         size: stats.size,
         uploadTime: stats.birthtime.toISOString(),
-        lastModified: stats.mtime.toISOString()
+        lastModified: stats.mtime.toISOString(),
+        fileType: fileType,
+        mimetype: getMimeType(ext)
       }
     })
+
+    // 为了兼容旧代码，同时返回 images（仅图片）和 files（所有文件）
+    const imageFiles = allFiles.filter((file) => file.fileType === 'image')
 
     res.json({
       code: 200,
-      message: '获取图片列表成功',
+      message: '获取文件列表成功',
       data: {
-        images: images,
-        count: images.length,
-        totalSize: images.reduce((sum, img) => sum + img.size, 0)
+        images: imageFiles, // 兼容旧接口，仅图片
+        files: allFiles, // 所有文件
+        list: allFiles, // 兼容别名
+        count: allFiles.length,
+        totalSize: allFiles.reduce((sum, file) => sum + file.size, 0)
       }
     })
-
   } catch (error) {
-    console.error('获取图片列表错误:', error)
+    console.error('获取文件列表错误:', error)
     res.status(500).json({
       code: 500,
-      message: '获取图片列表失败',
+      message: '获取文件列表失败',
       data: null
     })
-    }
+  }
 })
+
+/**
+ * 根据文件扩展名获取 MIME 类型
+ */
+function getMimeType(ext) {
+  const mimeTypes = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.bmp': 'image/bmp',
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.zip': 'application/zip',
+    '.rar': 'application/x-rar-compressed',
+    '.7z': 'application/x-7z-compressed',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv'
+  }
+  return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
+}
 
 /**
  * 单个文件上传接口（通用）
@@ -243,7 +293,6 @@ router.post('/file', fileUpload.single('file'), handleUploadError, (req, res) =>
       message: '文件上传成功',
       data: fileInfo
     })
-
   } catch (error) {
     console.error('文件上传错误:', error)
     res.status(500).json({
@@ -269,7 +318,7 @@ router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, re
       })
     }
 
-    const uploadedFiles = req.files.map(file => {
+    const uploadedFiles = req.files.map((file) => {
       return {
         originalName: file.originalname,
         filename: file.filename,
@@ -297,7 +346,6 @@ router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, re
         typeCount: fileTypeCount
       }
     })
-
   } catch (error) {
     console.error('批量文件上传错误:', error)
     res.status(500).json({

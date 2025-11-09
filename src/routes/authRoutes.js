@@ -1,7 +1,11 @@
 const express = require('express')
 const router = express.Router()
 const UserService = require('../services/userService')
-const { authenticateToken, requireAdmin } = require('../middlewares/authMiddleware')
+const {
+  authenticateToken,
+  requireAdmin,
+  refreshTokenIfNeeded
+} = require('../middlewares/authMiddleware')
 
 /**
  * 用户注册
@@ -29,7 +33,7 @@ router.post('/register', async (req, res) => {
     }
 
     const result = await UserService.register({ username, email, password, role })
-    
+
     res.status(201).json({
       code: 201,
       message: '注册成功',
@@ -62,7 +66,7 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await UserService.login({ username, password })
-    
+
     res.json({
       code: 200,
       message: '登录成功',
@@ -82,7 +86,7 @@ router.post('/login', async (req, res) => {
  * 获取当前用户信息
  * POST /auth/profile
  */
-router.post('/profile', authenticateToken, async (req, res) => {
+router.post('/profile', authenticateToken, refreshTokenIfNeeded, async (req, res) => {
   try {
     const user = req.user.getPublicProfile()
     res.json({
@@ -104,7 +108,7 @@ router.post('/profile', authenticateToken, async (req, res) => {
  * 更新用户信息
  * POST /auth/update
  */
-router.post('/update', authenticateToken, async (req, res) => {
+router.post('/update', authenticateToken, refreshTokenIfNeeded, async (req, res) => {
   try {
     const userId = req.user._id
     const updateData = req.body
@@ -114,7 +118,7 @@ router.post('/update', authenticateToken, async (req, res) => {
     delete updateData.role
 
     const user = await UserService.updateUser(userId, updateData)
-    
+
     res.json({
       code: 200,
       message: '更新用户信息成功',
@@ -134,7 +138,7 @@ router.post('/update', authenticateToken, async (req, res) => {
  * 修改密码
  * POST /auth/change-password
  */
-router.post('/change-password', authenticateToken, async (req, res) => {
+router.post('/change-password', authenticateToken, refreshTokenIfNeeded, async (req, res) => {
   try {
     const userId = req.user._id
     const { oldPassword, newPassword } = req.body
@@ -156,7 +160,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     }
 
     await UserService.changePassword(userId, oldPassword, newPassword)
-    
+
     res.json({
       code: 200,
       message: '密码修改成功',
@@ -175,37 +179,18 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 /**
  * 验证token
  * POST /auth/verify
+ * 使用 authenticateToken 和 refreshTokenIfNeeded 中间件
+ * 如果 token 即将过期，会在响应头返回新 token
  */
-router.post('/verify', async (req, res) => {
+router.post('/verify', authenticateToken, refreshTokenIfNeeded, async (req, res) => {
   try {
-    const authHeader = req.headers['authorization']
-    const token = authHeader && authHeader.split(' ')[1]
+    // authenticateToken 中间件已经验证了 token 并将用户信息添加到 req.user
+    const user = req.user.getPublicProfile()
 
-    if (!token) {
-      return res.status(401).json({
-        code: 401,
-        message: '访问令牌缺失',
-        data: null
-      })
-    }
-
-    const jwt = require('jsonwebtoken')
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production')
-    
-    const UserModel = require('../models/userModel')
-    const user = await UserModel.findById(decoded.userId)
-    if (!user || !user.isAccountActive()) {
-      return res.status(401).json({
-        code: 401,
-        message: '用户不存在或已被禁用',
-        data: null
-      })
-    }
-    
     res.json({
       code: 200,
       message: 'Token验证成功',
-      data: { user: user.getPublicProfile() }
+      data: { user }
     })
   } catch (error) {
     console.error('Token验证失败:', error)
@@ -221,11 +206,11 @@ router.post('/verify', async (req, res) => {
  * 获取用户列表（仅管理员）
  * POST /auth/users
  */
-router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/users', authenticateToken, refreshTokenIfNeeded, requireAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 10, ...query } = req.body
     const result = await UserService.getUserList(query, page, limit)
-    
+
     res.json({
       code: 200,
       message: '获取用户列表成功',
@@ -245,102 +230,120 @@ router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
  * 更新用户角色（仅管理员）
  * POST /auth/users/:userId/role
  */
-router.post('/users/:userId/role', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { userId } = req.params
-    const { role } = req.body
+router.post(
+  '/users/:userId/role',
+  authenticateToken,
+  refreshTokenIfNeeded,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { userId } = req.params
+      const { role } = req.body
 
-    if (!role || !['admin', 'user'].includes(role)) {
-      return res.status(400).json({
+      if (!role || !['admin', 'user'].includes(role)) {
+        return res.status(400).json({
+          code: 400,
+          message: '角色必须是admin或user',
+          data: null
+        })
+      }
+
+      const user = await UserService.updateUser(userId, { role })
+
+      res.json({
+        code: 200,
+        message: '更新用户角色成功',
+        data: { user }
+      })
+    } catch (error) {
+      console.error('更新用户角色失败:', error)
+      res.status(400).json({
         code: 400,
-        message: '角色必须是admin或user',
+        message: error.message || '更新用户角色失败',
         data: null
       })
     }
-
-    const user = await UserService.updateUser(userId, { role })
-    
-    res.json({
-      code: 200,
-      message: '更新用户角色成功',
-      data: { user }
-    })
-  } catch (error) {
-    console.error('更新用户角色失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '更新用户角色失败',
-      data: null
-    })
   }
-})
+)
 
 /**
  * 禁用/启用用户（仅管理员）
  * POST /auth/users/:userId/status
  */
-router.post('/users/:userId/status', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { userId } = req.params
-    const { isActive } = req.body
+router.post(
+  '/users/:userId/status',
+  authenticateToken,
+  refreshTokenIfNeeded,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { userId } = req.params
+      const { isActive } = req.body
 
-    if (typeof isActive !== 'boolean') {
-      return res.status(400).json({
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({
+          code: 400,
+          message: 'isActive必须是布尔值',
+          data: null
+        })
+      }
+
+      const user = await UserService.updateUser(userId, { isActive })
+
+      res.json({
+        code: 200,
+        message: `用户已${isActive ? '启用' : '禁用'}`,
+        data: { user }
+      })
+    } catch (error) {
+      console.error('更新用户状态失败:', error)
+      res.status(400).json({
         code: 400,
-        message: 'isActive必须是布尔值',
+        message: error.message || '更新用户状态失败',
         data: null
       })
     }
-
-    const user = await UserService.updateUser(userId, { isActive })
-    
-    res.json({
-      code: 200,
-      message: `用户已${isActive ? '启用' : '禁用'}`,
-      data: { user }
-    })
-  } catch (error) {
-    console.error('更新用户状态失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '更新用户状态失败',
-      data: null
-    })
   }
-})
+)
 
 /**
  * 删除用户（仅管理员）
  * POST /auth/users/:userId/delete
  */
-router.post('/users/:userId/delete', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { userId } = req.params
+router.post(
+  '/users/:userId/delete',
+  authenticateToken,
+  refreshTokenIfNeeded,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { userId } = req.params
 
-    // 不能删除自己
-    if (userId === req.user._id.toString()) {
-      return res.status(400).json({
+      // 不能删除自己
+      if (userId === req.user._id.toString()) {
+        return res.status(400).json({
+          code: 400,
+          message: '不能删除自己的账户',
+          data: null
+        })
+      }
+
+      await UserService.deleteUser(userId)
+
+      res.json({
+        code: 200,
+        message: '用户删除成功',
+        data: null
+      })
+    } catch (error) {
+      console.error('删除用户失败:', error)
+      res.status(400).json({
         code: 400,
-        message: '不能删除自己的账户',
+        message: error.message || '删除用户失败',
         data: null
       })
     }
-
-    await UserService.deleteUser(userId)
-    
-    res.json({
-      code: 200,
-      message: '用户删除成功',
-      data: null
-    })
-  } catch (error) {
-    console.error('删除用户失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '删除用户失败',
-      data: null
-    })
   }
-})
+)
 
 module.exports = router

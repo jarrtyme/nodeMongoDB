@@ -2,10 +2,11 @@ const express = require('express')
 const router = express.Router()
 
 const ClothingService = require('../services/clothingService')
-const { authenticateToken } = require('../middlewares/authMiddleware')
+const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/authMiddleware')
 
-// 所有服装管理路由都需要鉴权
+// 所有服装管理路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
+router.use(refreshTokenIfNeeded)
 
 // 创建服装入库记录
 router.post('/create', async (req, res) => {
@@ -41,12 +42,12 @@ router.post('/findById', async (req, res) => {
     if (!id) {
       return res.error('ID is required', 400)
     }
-    
+
     const clothingItem = await ClothingService.findById(id)
     if (!clothingItem) {
       return res.error('Clothing item not found', 404)
     }
-    
+
     res.success(clothingItem, 'Clothing item retrieved successfully')
   } catch (error) {
     console.error('Error finding clothing item by ID:', error)
@@ -61,12 +62,12 @@ router.post('/update', async (req, res) => {
     if (!id) {
       return res.error('ID is required', 400)
     }
-    
+
     const updatedClothing = await ClothingService.update(id, updateFields)
     if (!updatedClothing) {
       return res.error('Clothing item not found', 404)
     }
-    
+
     res.success(updatedClothing, 'Clothing item updated successfully')
   } catch (error) {
     console.error('Error updating clothing item:', error)
@@ -81,12 +82,12 @@ router.post('/remove', async (req, res) => {
     if (!id) {
       return res.error('ID is required', 400)
     }
-    
+
     const deletedClothing = await ClothingService.remove(id)
     if (!deletedClothing) {
       return res.error('Clothing item not found', 404)
     }
-    
+
     res.success(deletedClothing, 'Clothing item deleted successfully')
   } catch (error) {
     console.error('Error deleting clothing item:', error)
@@ -104,7 +105,7 @@ router.post('/restock', async (req, res) => {
     if (!quantity || quantity <= 0) {
       return res.error('Valid quantity is required', 400)
     }
-    
+
     const restockedClothing = await ClothingService.restock(id, quantity)
     res.success(restockedClothing, 'Clothing item restocked successfully')
   } catch (error) {
@@ -125,4 +126,3 @@ router.post('/stats', async (req, res) => {
 })
 
 module.exports = router
-
