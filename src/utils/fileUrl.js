@@ -34,24 +34,35 @@ function getFileUrl(filePath, req = null) {
     return filePath
   }
 
-  // 如果提供了 req 对象，优先使用请求的协议和主机（自动匹配 HTTP/HTTPS）
+  // 如果提供了 req 对象，使用请求的协议和主机（自动匹配 HTTP/HTTPS）
   if (req) {
     // 从请求头中获取协议（支持代理场景）
     const protocol =
       req.protocol ||
       (req.secure ? 'https' : 'http') ||
       (req.get && req.get('X-Forwarded-Proto')) ||
-      'https'
-    // 从请求头中获取主机（支持代理场景）
-    const host = (req.get && req.get('host')) || req.headers.host || 'www.wdmlzffonline.top'
+      'http'
+    // 从请求头中获取主机（支持代理场景），完全依赖请求对象，不设置默认值
+    const host = (req.get && req.get('host')) || req.headers.host
+
+    // 如果没有获取到 host，返回相对路径
+    if (!host) {
+      const cleanFilePath = filePath.startsWith('/') ? filePath : `/${filePath}`
+      return cleanFilePath
+    }
+
+    // 检查请求路径是否包含 /api，如果包含说明后台部署在 /api 路径下
+    const requestPath = req.baseUrl || req.path || req.url || ''
+    const needsApiPrefix =
+      requestPath.includes('/api') || (req.originalUrl && req.originalUrl.includes('/api'))
 
     const cleanFilePath = filePath.startsWith('/') ? filePath : `/${filePath}`
-    return `${protocol}://${host}${cleanFilePath}`
+    // 根据请求路径判断是否需要 /api 前缀
+    const apiPrefix = needsApiPrefix ? '/api' : ''
+    return `${protocol}://${host}${apiPrefix}${cleanFilePath}`
   }
 
-  // 如果没有 req 对象，使用环境变量配置
-  // 获取配置的域名（从环境变量，运行时读取）
-  // 默认使用 https://www.wdmlzffonline.top
+  // 如果没有 req 对象，尝试使用环境变量配置（可选）
   let baseUrl = process.env.FILE_BASE_URL
 
   // 如果环境变量不存在，尝试再次加载 dotenv
@@ -66,14 +77,19 @@ function getFileUrl(filePath, req = null) {
     }
   }
 
-  // 如果还是没有，使用默认值
-  baseUrl = baseUrl || 'https://www.wdmlzffonline.top'
+  // 如果环境变量也没有，返回相对路径（不设置默认域名）
+  if (!baseUrl) {
+    const cleanFilePath = filePath.startsWith('/') ? filePath : `/${filePath}`
+    return cleanFilePath
+  }
 
   // 确保 baseUrl 不以 / 结尾，filePath 以 / 开头
   const cleanBaseUrl = baseUrl.replace(/\/$/, '')
   const cleanFilePath = filePath.startsWith('/') ? filePath : `/${filePath}`
-
-  return `${cleanBaseUrl}${cleanFilePath}`
+  // 检查 baseUrl 是否包含 /api，如果包含说明后台部署在 /api 路径下
+  const needsApiPrefix = cleanBaseUrl.includes('/api')
+  const apiPrefix = needsApiPrefix ? '/api' : ''
+  return `${cleanBaseUrl}${apiPrefix}${cleanFilePath}`
 }
 
 /**
