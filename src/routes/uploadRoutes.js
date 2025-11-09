@@ -10,6 +10,7 @@ const {
   uploadDir
 } = require('../middlewares/uploadMiddleware')
 const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/authMiddleware')
+const { addFileUrl } = require('../utils/fileUrl')
 
 // 所有上传路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
@@ -42,11 +43,14 @@ router.post('/images', upload.array('file', 10), handleUploadError, (req, res) =
       }
     })
 
+    // 添加完整 URL
+    const filesWithUrl = addFileUrl(uploadedFiles)
+
     res.json({
       code: 200,
       message: `成功上传 ${uploadedFiles.length} 个文件`,
       data: {
-        files: uploadedFiles,
+        files: filesWithUrl,
         count: uploadedFiles.length,
         totalSize: uploadedFiles.reduce((sum, file) => sum + file.size, 0)
       }
@@ -85,10 +89,13 @@ router.post('/image', upload.single('file'), handleUploadError, (req, res) => {
       uploadTime: new Date().toISOString()
     }
 
+    // 添加完整 URL
+    const fileWithUrl = addFileUrl(uploadedFile)
+
     res.json({
       code: 200,
       message: '图片上传成功',
-      data: uploadedFile
+      data: fileWithUrl
     })
   } catch (error) {
     console.error('图片上传错误:', error)
@@ -212,18 +219,21 @@ router.post('/list', (req, res) => {
       }
     })
 
+    // 添加完整 URL
+    const allFilesWithUrl = addFileUrl(allFiles)
+
     // 为了兼容旧代码，同时返回 images（仅图片）和 files（所有文件）
-    const imageFiles = allFiles.filter((file) => file.fileType === 'image')
+    const imageFiles = allFilesWithUrl.filter((file) => file.fileType === 'image')
 
     res.json({
       code: 200,
       message: '获取文件列表成功',
       data: {
         images: imageFiles, // 兼容旧接口，仅图片
-        files: allFiles, // 所有文件
-        list: allFiles, // 兼容别名
-        count: allFiles.length,
-        totalSize: allFiles.reduce((sum, file) => sum + file.size, 0)
+        files: allFilesWithUrl, // 所有文件
+        list: allFilesWithUrl, // 兼容别名
+        count: allFilesWithUrl.length,
+        totalSize: allFilesWithUrl.reduce((sum, file) => sum + file.size, 0)
       }
     })
   } catch (error) {
@@ -288,10 +298,13 @@ router.post('/file', fileUpload.single('file'), handleUploadError, (req, res) =>
       uploadTime: new Date().toISOString()
     }
 
+    // 添加完整 URL
+    const fileInfoWithUrl = addFileUrl(fileInfo)
+
     res.json({
       code: 200,
       message: '文件上传成功',
-      data: fileInfo
+      data: fileInfoWithUrl
     })
   } catch (error) {
     console.error('文件上传错误:', error)
@@ -330,6 +343,9 @@ router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, re
       }
     })
 
+    // 添加完整 URL
+    const filesWithUrl = addFileUrl(uploadedFiles)
+
     // 按文件类型分组统计
     const fileTypeCount = uploadedFiles.reduce((acc, file) => {
       acc[file.fileType] = (acc[file.fileType] || 0) + 1
@@ -340,7 +356,7 @@ router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, re
       code: 200,
       message: `成功上传 ${uploadedFiles.length} 个文件`,
       data: {
-        files: uploadedFiles,
+        files: filesWithUrl,
         count: uploadedFiles.length,
         totalSize: uploadedFiles.reduce((sum, file) => sum + file.size, 0),
         typeCount: fileTypeCount
