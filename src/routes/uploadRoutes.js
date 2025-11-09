@@ -43,8 +43,8 @@ router.post('/images', upload.array('file', 10), handleUploadError, (req, res) =
       }
     })
 
-    // 添加完整 URL
-    const filesWithUrl = addFileUrl(uploadedFiles)
+    // 添加完整 URL（传入 req 以自动匹配协议）
+    const filesWithUrl = addFileUrl(uploadedFiles, req)
 
     res.json({
       code: 200,
@@ -89,8 +89,8 @@ router.post('/image', upload.single('file'), handleUploadError, (req, res) => {
       uploadTime: new Date().toISOString()
     }
 
-    // 添加完整 URL
-    const fileWithUrl = addFileUrl(uploadedFile)
+    // 添加完整 URL（传入 req 以自动匹配协议）
+    const fileWithUrl = addFileUrl(uploadedFile, req)
 
     res.json({
       code: 200,
@@ -219,8 +219,8 @@ router.post('/list', (req, res) => {
       }
     })
 
-    // 添加完整 URL
-    const allFilesWithUrl = addFileUrl(allFiles)
+    // 添加完整 URL（传入 req 以自动匹配协议）
+    const allFilesWithUrl = addFileUrl(allFiles, req)
 
     // 为了兼容旧代码，同时返回 images（仅图片）和 files（所有文件）
     const imageFiles = allFilesWithUrl.filter((file) => file.fileType === 'image')
@@ -298,8 +298,8 @@ router.post('/file', fileUpload.single('file'), handleUploadError, (req, res) =>
       uploadTime: new Date().toISOString()
     }
 
-    // 添加完整 URL
-    const fileInfoWithUrl = addFileUrl(fileInfo)
+    // 添加完整 URL（传入 req 以自动匹配协议）
+    const fileInfoWithUrl = addFileUrl(fileInfo, req)
 
     res.json({
       code: 200,
@@ -343,8 +343,8 @@ router.post('/files', fileUpload.array('files', 10), handleUploadError, (req, re
       }
     })
 
-    // 添加完整 URL
-    const filesWithUrl = addFileUrl(uploadedFiles)
+    // 添加完整 URL（传入 req 以自动匹配协议）
+    const filesWithUrl = addFileUrl(uploadedFiles, req)
 
     // 按文件类型分组统计
     const fileTypeCount = uploadedFiles.reduce((acc, file) => {

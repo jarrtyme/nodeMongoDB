@@ -25,6 +25,10 @@ const authRoutes = require('./src/routes/authRoutes') // 引入认证路由文�
 
 const app = express()
 
+// 信任代理（用于在 Nginx 等反向代理场景下正确获取协议和主机）
+// 这样 req.protocol 和 req.get('host') 才能正确工作
+app.set('trust proxy', true)
+
 // 配置跨域 - 允许所有请求
 app.use(
   cors({
