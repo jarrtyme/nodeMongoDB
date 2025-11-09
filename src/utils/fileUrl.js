@@ -51,13 +51,27 @@ function getFileUrl(filePath, req = null) {
       return cleanFilePath
     }
 
-    // 检查请求路径是否包含 /api，如果包含说明后台部署在 /api 路径下
+    // 判断是否需要 /api 前缀
+    // 1. 检查请求路径是否包含 /api（如果 Nginx 保留了原始路径）
     const requestPath = req.baseUrl || req.path || req.url || ''
-    const needsApiPrefix =
-      requestPath.includes('/api') || (req.originalUrl && req.originalUrl.includes('/api'))
+    const originalUrl = req.originalUrl || ''
+    const hasApiInPath = requestPath.includes('/api') || originalUrl.includes('/api')
+
+    // 2. 判断是否是本地环境
+    const isLocal =
+      host === 'localhost' ||
+      host.startsWith('localhost:') ||
+      host === '127.0.0.1' ||
+      host.startsWith('127.0.0.1:') ||
+      host.startsWith('0.0.0.0:')
+
+    // 3. 如果需要 /api 前缀：
+    //    - 路径中包含 /api，或者
+    //    - 路径中不包含 /api 但 host 不是本地地址（生产环境通过 Nginx 代理）
+    const needsApiPrefix = hasApiInPath || !isLocal
 
     const cleanFilePath = filePath.startsWith('/') ? filePath : `/${filePath}`
-    // 根据请求路径判断是否需要 /api 前缀
+    // 根据判断结果决定是否需要 /api 前缀
     const apiPrefix = needsApiPrefix ? '/api' : ''
     return `${protocol}://${host}${apiPrefix}${cleanFilePath}`
   }
