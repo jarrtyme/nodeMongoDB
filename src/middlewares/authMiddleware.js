@@ -3,7 +3,7 @@ const UserModel = require('../models/userModel')
 
 // JWT密钥配置
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15d'
 
 /**
  * JWT鉴权中间件
@@ -25,7 +25,7 @@ const authenticateToken = async (req, res, next) => {
 
     // 验证JWT token
     const decoded = jwt.verify(token, JWT_SECRET)
-    
+
     // 查找用户
     const user = await UserModel.findById(decoded.userId)
     if (!user) {
@@ -120,8 +120,8 @@ const generateToken = (user) => {
     role: user.role
   }
 
-  return jwt.sign(payload, JWT_SECRET, { 
-    expiresIn: JWT_EXPIRES_IN 
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN
   })
 }
 

@@ -2,16 +2,73 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-// 确保上传目录存在
-const uploadDir = path.join(__dirname, '../../public/uploads')
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
+// 基础上传目录
+const baseUploadDir = path.join(__dirname, '../../public/uploads')
+
+// 确保基础上传目录存在
+if (!fs.existsSync(baseUploadDir)) {
+  fs.mkdirSync(baseUploadDir, { recursive: true })
 }
 
-// 配置存储
+// 根据文件类型获取存储目录
+function getStorageDir(mimetype, originalname) {
+  // 根据 MIME 类型和扩展名判断文件类型
+  const ext = path.extname(originalname).toLowerCase()
+
+  // 图片类型
+  if (
+    mimetype.startsWith('image/') ||
+    ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'].includes(ext)
+  ) {
+    return path.join(baseUploadDir, 'images')
+  }
+  // 视频类型
+  if (
+    mimetype.startsWith('video/') ||
+    ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.flv', '.mkv'].includes(ext)
+  ) {
+    return path.join(baseUploadDir, 'videos')
+  }
+  // 文档类型
+  if (
+    mimetype.includes('pdf') ||
+    mimetype.includes('document') ||
+    mimetype.includes('word') ||
+    mimetype.includes('spreadsheet') ||
+    mimetype.includes('excel') ||
+    mimetype.includes('presentation') ||
+    mimetype.includes('powerpoint') ||
+    ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].includes(ext)
+  ) {
+    return path.join(baseUploadDir, 'documents')
+  }
+  // 压缩包类型
+  if (
+    mimetype.includes('zip') ||
+    mimetype.includes('rar') ||
+    mimetype.includes('7z') ||
+    mimetype.includes('compressed') ||
+    ['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)
+  ) {
+    return path.join(baseUploadDir, 'archives')
+  }
+  // 文本类型
+  if (mimetype.startsWith('text/') || ['.txt', '.csv', '.json', '.xml', '.md'].includes(ext)) {
+    return path.join(baseUploadDir, 'texts')
+  }
+  // 其他类型
+  return path.join(baseUploadDir, 'others')
+}
+
+// 配置存储（支持按文件类型分类）
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir)
+    const storageDir = getStorageDir(file.mimetype, file.originalname)
+    // 确保目录存在
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true })
+    }
+    cb(null, storageDir)
   },
   filename: (req, file, cb) => {
     // 生成唯一文件名：时间戳_随机数_原文件名
@@ -22,24 +79,11 @@ const storage = multer.diskStorage({
   }
 })
 
-// 图片文件过滤器
-const imageFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
-  const mimetype = allowedTypes.test(file.mimetype)
-
-  if (mimetype && extname) {
-    return cb(null, true)
-  } else {
-    cb(new Error('只允许上传图片文件 (jpeg, jpg, png, gif, webp)'), false)
-  }
-}
-
 // 通用文件过滤器（支持更多文件类型，包括视频）
 const generalFileFilter = (req, file, cb) => {
   // 允许的文件类型（包括视频）
   const allowedTypes =
-    /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|txt|csv|mp4|webm|ogg|mov|avi|wmv|flv|mkv/
+    /jpeg|jpg|png|gif|webp|bmp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|csv|json|xml|md|mp4|webm|ogg|mov|avi|wmv|flv|mkv/
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
 
   if (extname) {
@@ -47,27 +91,27 @@ const generalFileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        '不支持的文件类型。允许的类型：图片(jpg,png,gif,webp)、视频(mp4,webm,ogg,mov,avi,wmv,flv,mkv)、文档(pdf,doc,docx,xls,xlsx,ppt,pptx)、压缩包(zip,rar,7z)、文本(txt,csv)'
+        '不支持的文件类型。允许的类型：图片(jpg,png,gif,webp,bmp,svg)、视频(mp4,webm,ogg,mov,avi,wmv,flv,mkv)、文档(pdf,doc,docx,xls,xlsx,ppt,pptx)、压缩包(zip,rar,7z,tar,gz)、文本(txt,csv,json,xml,md)'
       ),
       false
     )
   }
 }
 
-// 文件大小限制
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB（用于图片和一般文件）
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB（用于视频）
-const MAX_FILES = 10
-
-// 图片上传配置（仅图片，10MB）
-const imageUpload = multer({
-  storage: storage,
-  fileFilter: imageFilter,
-  limits: {
-    fileSize: MAX_FILE_SIZE,
-    files: MAX_FILES
+// 根据文件存储路径获取相对路径（用于返回给前端）
+function getRelativePath(filePath) {
+  // 将绝对路径转换为相对于 public/uploads 的路径
+  const normalizedPath = path.normalize(filePath)
+  const uploadsIndex = normalizedPath.indexOf('uploads')
+  if (uploadsIndex !== -1) {
+    return normalizedPath.substring(uploadsIndex - 1) // 包含 /uploads
   }
-})
+  return `/uploads/${path.basename(filePath)}` // 如果找不到，返回默认路径
+}
+
+// 文件大小限制
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB（用于所有文件类型）
+const MAX_FILES = 10
 
 // 通用文件上传配置（支持多种类型，包括视频，50MB）
 const fileUpload = multer({
@@ -108,12 +152,9 @@ const getFileType = (mimetype) => {
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      // 根据请求路径判断是图片还是通用文件上传
-      const isImageUpload = req.path.includes('/image')
-      const maxSize = isImageUpload ? '10MB' : '50MB'
       return res.status(400).json({
         code: 400,
-        message: `文件大小超过限制 (最大${maxSize})`,
+        message: `文件大小超过限制 (最大50MB)`,
         data: null
       })
     }
@@ -145,17 +186,18 @@ const handleUploadError = (error, req, res, next) => {
 }
 
 module.exports = {
-  // 图片上传（兼容旧接口）
-  upload: imageUpload,
-  // 通用文件上传（支持视频，50MB）
+  // 通用文件上传（支持所有文件类型，50MB）
   fileUpload: fileUpload,
   // 错误处理
   handleUploadError,
   // 文件类型识别
   getFileType,
+  // 获取存储目录函数
+  getStorageDir,
+  // 获取相对路径函数
+  getRelativePath,
   // 导出配置常量
-  uploadDir,
-  MAX_FILE_SIZE,
+  uploadDir: baseUploadDir,
   MAX_VIDEO_SIZE,
   MAX_FILES
 }

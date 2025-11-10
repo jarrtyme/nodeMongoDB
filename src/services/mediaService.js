@@ -1,9 +1,64 @@
 const MediaModel = require('../models/mediaModel.js')
+const fs = require('fs')
+const path = require('path')
+const { normalizeUrl, cleanFilePath } = require('../utils/urlUtils')
+const { safeDeleteFile } = require('../utils/pathValidator')
 
-// 创建媒体记录
+// 根据URL查找媒体记录（支持多种URL格式匹配）
+const findByUrl = async (url) => {
+  try {
+    if (!url) return null
+
+    const normalizedUrl = normalizeUrl(url)
+    const normalizedWithSlash = normalizedUrl.startsWith('/') ? normalizedUrl : '/' + normalizedUrl
+    const normalizedWithoutSlash = normalizedUrl.startsWith('/')
+      ? normalizedUrl.substring(1)
+      : normalizedUrl
+
+    // 尝试多种URL格式匹配
+    const doc = await MediaModel.findOne({
+      $or: [
+        { url: url },
+        { url: normalizedUrl },
+        { url: normalizedWithSlash },
+        { url: normalizedWithoutSlash },
+        { url: { $regex: normalizedUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+      ]
+    })
+    return doc
+  } catch (error) {
+    console.error('Error finding media by URL:', error)
+    return null
+  }
+}
+
+// 创建媒体记录（如果URL已存在则返回已存在的记录）
 const create = async (data) => {
   try {
-    const savedDoc = await MediaModel.create(data)
+    // 先检查URL是否已存在
+    const existingMedia = await findByUrl(data.url)
+    if (existingMedia) {
+      // 如果已存在，更新信息（保留原有描述，除非提供了新描述）
+      if (data.filename && existingMedia.filename !== data.filename) {
+        existingMedia.filename = data.filename
+      }
+      if (data.size && existingMedia.size !== data.size) {
+        existingMedia.size = data.size
+      }
+      if (data.mimetype && existingMedia.mimetype !== data.mimetype) {
+        existingMedia.mimetype = data.mimetype
+      }
+      // 确保标记为已添加到媒体库
+      existingMedia.isAddedToLibrary = true
+      await existingMedia.save()
+      return existingMedia
+    }
+
+    // 如果不存在，创建新记录
+    const savedDoc = await MediaModel.create({
+      ...data,
+      isAddedToLibrary: true
+    })
     return savedDoc
   } catch (error) {
     console.error('Error creating media item:', error)
@@ -58,9 +113,52 @@ const update = async (mediaId, updateFields) => {
   }
 }
 
-// 删除媒体记录
+// 删除媒体记录（同时删除文件）
 const remove = async (id) => {
   try {
+    // 先查找媒体记录，获取文件路径
+    const media = await MediaModel.findById(id)
+    if (!media) {
+      return null
+    }
+
+    // 删除文件
+    if (media.url) {
+      try {
+        // 从URL中提取文件路径
+        let filePath = media.url
+        // 如果是完整URL，提取路径部分
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+          try {
+            const url = new URL(filePath)
+            filePath = url.pathname
+          } catch {
+            // 如果不是有效URL，尝试直接提取路径
+            filePath = filePath.replace(/^https?:\/\/[^/]+/, '')
+          }
+        }
+
+        // 清理路径：移除 /api 前缀和查询参数
+        const cleanPath = cleanFilePath(filePath)
+
+        // 使用工具函数安全删除文件
+        const deleteResult = safeDeleteFile(cleanPath, path.join(__dirname, '../public'), {
+          requireUploadsPrefix: true,
+          requireCategory: false
+        })
+
+        if (deleteResult.success) {
+          console.log(`文件已删除: ${deleteResult.path}`)
+        } else {
+          console.warn(`删除文件失败: ${deleteResult.error}`)
+        }
+      } catch (fileError) {
+        // 文件删除失败不影响记录删除，只记录错误
+        console.error('删除文件失败:', fileError)
+      }
+    }
+
+    // 删除数据库记录
     const deletedDoc = await MediaModel.findByIdAndDelete(id)
     return deletedDoc
   } catch (error) {
@@ -138,6 +236,7 @@ module.exports = {
   find,
   count,
   findById,
+  findByUrl,
   update,
   remove,
   addDescription,

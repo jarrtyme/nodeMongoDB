@@ -54,6 +54,11 @@ const MediaSchema = new mongoose.Schema({
     ],
     default: []
   },
+  // 是否已添加到媒体库（标记媒体源是否已经在媒体库中）
+  isAddedToLibrary: {
+    type: Boolean,
+    default: true // 默认已添加，因为创建时就是添加到媒体库
+  },
   // 创建时间
   createdAt: {
     type: Date,

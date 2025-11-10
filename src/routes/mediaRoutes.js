@@ -4,6 +4,7 @@ const router = express.Router()
 const MediaService = require('../services/mediaService')
 const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/authMiddleware')
 const { addFileUrl } = require('../utils/fileUrl')
+const { normalizeUrlForStorage } = require('../utils/urlUtils')
 
 // 所有媒体库路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
@@ -22,13 +23,23 @@ router.post('/create', async (req, res) => {
       return res.error('Type must be "image" or "video"', 400)
     }
 
+    const normalizedUrl = normalizeUrlForStorage(url)
+
     const mediaData = {
       type,
-      url,
+      url: normalizedUrl, // 使用标准化后的 URL 存储
       filename: filename || '',
       size: size || 0,
       mimetype: mimetype || '',
       descriptions: descriptions.map((text) => ({ text }))
+    }
+
+    // 检查是否已存在（使用标准化后的 URL 检查）
+    const existingMedia = await MediaService.findByUrl(normalizedUrl)
+    if (existingMedia) {
+      // 如果已存在，返回已存在的记录
+      const mediaWithUrl = addFileUrl(existingMedia, req)
+      return res.success(mediaWithUrl, 'Media item already exists in library')
     }
 
     const newMedia = await MediaService.create(mediaData)
@@ -39,7 +50,11 @@ router.post('/create', async (req, res) => {
     res.success(mediaWithUrl, 'Media item created successfully')
   } catch (error) {
     console.error('Error creating media item:', error)
-    res.error('Failed to create media item', 500)
+    // 如果是重复键错误，返回更友好的错误信息
+    if (error.code === 11000 || error.message.includes('duplicate')) {
+      return res.error('This media item already exists in the library', 409)
+    }
+    res.error('Failed to create media item: ' + error.message, 500)
   }
 })
 
@@ -130,10 +145,53 @@ router.post('/update', async (req, res) => {
   }
 })
 
-// 删除媒体记录
+// 删除媒体记录（支持单个和批量删除）
 router.post('/remove', async (req, res) => {
   try {
-    const { id } = req.body
+    const { id, ids } = req.body
+
+    // 批量删除模式
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      const results = []
+      const errors = []
+
+      for (let i = 0; i < ids.length; i++) {
+        try {
+          const mediaId = ids[i]
+          const deletedMedia = await MediaService.remove(mediaId)
+          if (deletedMedia) {
+            results.push({
+              id: mediaId,
+              success: true
+            })
+          } else {
+            errors.push({
+              id: mediaId,
+              error: 'Media item not found'
+            })
+          }
+        } catch (error) {
+          errors.push({
+            id: ids[i],
+            error: error.message
+          })
+        }
+      }
+
+      return res.json({
+        code: errors.length === 0 ? 200 : 207, // 207 = Multi-Status
+        message: `批量删除完成：成功 ${results.length} 个，失败 ${errors.length} 个`,
+        data: {
+          success: results,
+          failed: errors,
+          total: ids.length,
+          successCount: results.length,
+          failCount: errors.length
+        }
+      })
+    }
+
+    // 单个删除模式（保持向后兼容）
     if (!id) {
       return res.error('ID is required', 400)
     }
