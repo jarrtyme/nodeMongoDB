@@ -86,7 +86,8 @@ function validateAndResolvePath(filePath, baseDir = null, options = {}) {
 
   // 如果没有指定基础目录，使用默认值
   if (!baseDir) {
-    baseDir = path.join(__dirname, '../../public')
+    const { publicDir } = require('../config/paths')
+    baseDir = publicDir
   }
 
   // 将相对路径转换为绝对路径

@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const { normalizeUrl, cleanFilePath } = require('../utils/urlUtils')
 const { safeDeleteFile } = require('../utils/pathValidator')
+const { publicDir } = require('../config/paths')
 
 // 根据URL查找媒体记录（支持多种URL格式匹配）
 const findByUrl = async (url) => {
@@ -142,7 +143,7 @@ const remove = async (id) => {
         const cleanPath = cleanFilePath(filePath)
 
         // 使用工具函数安全删除文件
-        const deleteResult = safeDeleteFile(cleanPath, path.join(__dirname, '../public'), {
+        const deleteResult = safeDeleteFile(cleanPath, publicDir, {
           requireUploadsPrefix: true,
           requireCategory: false
         })

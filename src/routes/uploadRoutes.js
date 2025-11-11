@@ -24,6 +24,7 @@ const {
   validateFilename
 } = require('../utils/pathValidator')
 const MediaService = require('../services/mediaService')
+const { publicDir, uploadsDir } = require('../config/paths')
 
 // 所有上传路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
@@ -196,7 +197,7 @@ function deleteSingleFile(filename, filePath) {
       let cleanPath = cleanFilePath(filePath)
 
       // 验证并解析路径（使用工具函数）
-      const pathResult = validateAndResolvePath(cleanPath, path.join(__dirname, '../../public'), {
+      const pathResult = validateAndResolvePath(cleanPath, publicDir, {
         requireUploadsPrefix: true,
         requireCategory: true
       })
@@ -226,7 +227,7 @@ function deleteSingleFile(filename, filePath) {
       const categories = ['images', 'videos', 'documents', 'archives', 'texts', 'others']
       let found = false
       for (const category of categories) {
-        const categoryPath = path.join(__dirname, '../../public/uploads', category, filename)
+        const categoryPath = path.join(uploadsDir, category, filename)
         if (fs.existsSync(categoryPath)) {
           targetPath = categoryPath
           found = true
@@ -236,7 +237,7 @@ function deleteSingleFile(filename, filePath) {
 
       // 如果分类目录中没找到，尝试根目录（处理旧文件）
       if (!found) {
-        targetPath = path.join(__dirname, '../../public/uploads', filename)
+        targetPath = path.join(uploadsDir, filename)
       }
     } else {
       return {
@@ -299,7 +300,7 @@ router.post('/list', async (req, res) => {
     const pageNum = Math.max(1, parseInt(page, 10))
     const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10))) // 限制最大每页100条
 
-    const baseUploadDir = path.join(__dirname, '../../public/uploads')
+    const baseUploadDir = uploadsDir
 
     if (!fs.existsSync(baseUploadDir)) {
       return res.json({
@@ -524,34 +525,51 @@ router.post('/list', async (req, res) => {
     // 获取当前页文件对应的媒体库信息（只查询当前页的文件，提高性能）
     const mediaMap = {}
     try {
-      // 提取当前页所有文件的路径（标准化）
-      const filePaths = allFilesWithUrl.map((file) => {
-        return normalizeFilePath(file.path || '')
+      // 提取当前页所有文件的路径（使用与存储时相同的标准化逻辑）
+      const normalizedFilePaths = allFilesWithUrl.map((file) => {
+        // 使用 normalizeUrlForStorage 确保格式与媒体库存储格式一致（以 / 开头）
+        return normalizeUrlForStorage(file.path || '')
       })
 
       // 查询媒体库中匹配这些路径的记录
-      if (filePaths.length > 0) {
+      if (normalizedFilePaths.length > 0) {
         const MediaService = require('../services/mediaService')
-        // 标准化文件路径（确保格式一致，用于存储和匹配）
-        const normalizedFilePaths = filePaths.map((path) => {
-          // 确保以 / 开头（与存储格式一致）
-          return normalizeUrlForStorage(path)
-        })
+
+        // 调试日志：记录要查询的文件路径
+        console.log(`[upload/list] 准备查询 ${normalizedFilePaths.length} 个文件的媒体库信息`)
+        console.log(`[upload/list] 文件路径示例: ${normalizedFilePaths.slice(0, 3).join(', ')}...`)
 
         // 使用 $or 查询匹配多个路径（支持多种格式）
         const mediaQuery = {
           $or: normalizedFilePaths.flatMap((path) => {
-            // 支持多种路径格式匹配
+            // 支持多种路径格式匹配（媒体库中可能存储了不同格式）
             return [
-              { url: path },
-              { url: path.substring(1) }, // 不带前导斜杠
-              { url: path.replace(/^\/+/, '') } // 移除所有前导斜杠
+              { url: path }, // 标准格式：/uploads/images/xxx.jpg
+              { url: path.startsWith('/') ? path.substring(1) : path }, // 不带前导斜杠：uploads/images/xxx.jpg
+              { url: '/' + path.replace(/^\/+/, '') } // 确保只有一个前导斜杠
             ]
           })
         }
 
+        // 调试日志：记录查询条件（只记录前几个，避免日志过长）
+        const querySample = mediaQuery.$or.slice(0, 3)
+        console.log(`[upload/list] 查询条件示例: ${JSON.stringify(querySample)}...`)
+
         // 查询媒体库记录，确保返回 isAddedToLibrary 字段
         const matchedMedia = await MediaService.find(mediaQuery, 1, 1000)
+
+        // 调试日志：记录查询结果
+        console.log(
+          `[upload/list] 查询到 ${matchedMedia.length} 条媒体库记录（共查询 ${normalizedFilePaths.length} 个文件）`
+        )
+        if (matchedMedia.length > 0) {
+          console.log(
+            `[upload/list] 媒体库记录示例: ${matchedMedia
+              .slice(0, 3)
+              .map((m) => m.url)
+              .join(', ')}...`
+          )
+        }
 
         // 构建媒体库映射（通过标准化路径匹配）
         matchedMedia.forEach((media) => {
@@ -559,18 +577,21 @@ router.post('/list', async (req, res) => {
           // 使用 normalizeUrlForStorage 确保格式一致
           let mediaUrl = normalizeUrlForStorage(media.url || '')
 
-          // 匹配文件路径（使用标准化后的路径）
+          // 调试日志：记录媒体库中的 URL
+          console.log(
+            `[upload/list] 媒体库 URL: ${mediaUrl}, isAddedToLibrary: ${media.isAddedToLibrary}`
+          )
+
+          // 匹配文件路径（使用标准化后的路径进行精确匹配）
           const matchedPath = normalizedFilePaths.find((path) => {
-            // 标准化路径进行比较
-            const normalizedPath = path.startsWith('/') ? path : '/' + path
+            // 标准化路径进行比较（都使用 normalizeUrlForStorage 标准化，格式应该一致）
+            const pathNoSlash = path.startsWith('/') ? path.substring(1) : path
+            const mediaUrlNoSlash = mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl
             return (
-              normalizedPath === mediaUrl ||
-              normalizedPath ===
-                (mediaUrl.startsWith('/') ? mediaUrl.substring(1) : '/' + mediaUrl) ||
-              mediaUrl ===
-                (normalizedPath.startsWith('/')
-                  ? normalizedPath.substring(1)
-                  : '/' + normalizedPath)
+              path === mediaUrl ||
+              pathNoSlash === mediaUrl ||
+              path === mediaUrlNoSlash ||
+              pathNoSlash === mediaUrlNoSlash
             )
           })
 
@@ -585,26 +606,41 @@ router.post('/list', async (req, res) => {
               isAddedToLibrary: isAddedToLibrary
             }
 
-            // 找到对应的原始路径索引
-            const matchedIndex = normalizedFilePaths.indexOf(matchedPath)
-            if (matchedIndex !== -1 && matchedIndex < filePaths.length) {
-              const originalPath = filePaths[matchedIndex]
-              // 使用原始路径作为 key
-              mediaMap[originalPath] = mediaInfo
-            }
-            // 也使用标准化路径作为 key（双重保障）
+            // 调试日志：记录匹配成功
+            console.log(
+              `[upload/list] 路径匹配成功: ${matchedPath} -> 媒体库 URL: ${mediaUrl}, isAddedToLibrary: ${isAddedToLibrary}`
+            )
+
+            // 使用标准化路径作为 key（与查找时使用的格式一致）
             mediaMap[matchedPath] = mediaInfo
-            // 也使用不带前导斜杠的版本
+            // 也使用不带前导斜杠的版本（双重保障）
             if (matchedPath.startsWith('/')) {
               mediaMap[matchedPath.substring(1)] = mediaInfo
             } else {
               mediaMap['/' + matchedPath] = mediaInfo
             }
+            // 也使用媒体库中的原始 URL 格式作为 key（以防万一）
+            mediaMap[mediaUrl] = mediaInfo
+            if (mediaUrl.startsWith('/')) {
+              mediaMap[mediaUrl.substring(1)] = mediaInfo
+            } else {
+              mediaMap['/' + mediaUrl] = mediaInfo
+            }
+          } else {
+            // 调试日志：记录未匹配的媒体库记录
+            console.log(
+              `[upload/list] 媒体库记录未匹配到文件 - 媒体库 URL: ${mediaUrl}, 文件路径列表前3个: ${normalizedFilePaths
+                .slice(0, 3)
+                .join(', ')}...`
+            )
           }
         })
+      } else {
+        console.log(`[upload/list] 没有文件需要查询媒体库信息`)
       }
     } catch (error) {
       console.error('获取媒体库信息失败:', error)
+      console.error('错误堆栈:', error.stack)
       // 媒体库查询失败不影响文件列表返回
     }
 
@@ -618,6 +654,16 @@ router.post('/list', async (req, res) => {
         mediaMap[filePath] ||
         mediaMap[filePath.substring(1)] || // 不带前导斜杠
         mediaMap['/' + filePath.replace(/^\/+/, '')] // 确保只有一个前导斜杠
+
+      // 调试日志：记录查找结果
+      if (!mediaInfo && filePath) {
+        console.log(
+          `[upload/list] 未找到媒体库信息 - 文件路径: ${filePath}, 原始路径: ${file.path}`
+        )
+        console.log(
+          `[upload/list] mediaMap keys: ${Object.keys(mediaMap).slice(0, 5).join(', ')}...`
+        )
+      }
 
       // 如果找到了媒体信息，说明已添加到媒体库
       const isAddedToLibrary = mediaInfo

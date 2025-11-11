@@ -1,9 +1,10 @@
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
+const { uploadsDir } = require('../config/paths')
 
 // 基础上传目录
-const baseUploadDir = path.join(__dirname, '../../public/uploads')
+const baseUploadDir = uploadsDir
 
 // 确保基础上传目录存在
 if (!fs.existsSync(baseUploadDir)) {
