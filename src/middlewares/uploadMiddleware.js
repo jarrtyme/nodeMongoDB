@@ -111,15 +111,15 @@ function getRelativePath(filePath) {
 }
 
 // 文件大小限制
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB（用于所有文件类型）
-const MAX_FILES = 10
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024 // 100MB（用于所有文件类型）
+const MAX_FILES = 200
 
-// 通用文件上传配置（支持多种类型，包括视频，50MB）
+// 通用文件上传配置（支持多种类型，包括视频，100MB）
 const fileUpload = multer({
   storage: storage,
   fileFilter: generalFileFilter,
   limits: {
-    fileSize: MAX_VIDEO_SIZE, // 增加到50MB以支持视频
+    fileSize: MAX_VIDEO_SIZE, // 增加到100MB以支持视频
     files: MAX_FILES
   }
 })
@@ -155,14 +155,14 @@ const handleUploadError = (error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         code: 400,
-        message: `文件大小超过限制 (最大50MB)`,
+        message: `文件大小超过限制 (最大100MB)`,
         data: null
       })
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         code: 400,
-        message: '文件数量超过限制 (最多10个)',
+        message: '文件数量超过限制 (最多200个)',
         data: null
       })
     }
@@ -187,7 +187,7 @@ const handleUploadError = (error, req, res, next) => {
 }
 
 module.exports = {
-  // 通用文件上传（支持所有文件类型，50MB）
+  // 通用文件上传（支持所有文件类型，100MB）
   fileUpload: fileUpload,
   // 错误处理
   handleUploadError,

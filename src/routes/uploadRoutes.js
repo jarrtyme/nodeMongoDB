@@ -36,7 +36,7 @@ router.use(refreshTokenIfNeeded)
  * 支持多文件上传，支持所有文件类型，自动按文件类型分类存储
  * 请求参数：files (multipart/form-data) - 文件数组，支持单个或多个文件
  */
-router.post('/', fileUpload.array('files', 10), handleUploadError, (req, res) => {
+router.post('/', fileUpload.array('files', 200), handleUploadError, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
