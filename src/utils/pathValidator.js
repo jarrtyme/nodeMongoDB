@@ -5,6 +5,7 @@
 
 const path = require('path')
 const fs = require('fs')
+const pathIsInside = require('path-is-inside')
 
 /**
  * 验证文件路径是否安全（防止路径遍历攻击）
@@ -93,12 +94,14 @@ function validateAndResolvePath(filePath, baseDir = null, options = {}) {
   // 将相对路径转换为绝对路径
   const absolutePath = path.join(baseDir, filePath)
 
-  // 确保目标路径在允许的目录内（双重安全检查）
+  // 确保目标路径在允许的目录内（使用 path-is-inside 库进行安全检查）
   const allowedBaseDir = path.join(baseDir, 'uploads')
   const resolvedPath = path.resolve(absolutePath)
   const resolvedBaseDir = path.resolve(allowedBaseDir)
 
-  if (!resolvedPath.startsWith(resolvedBaseDir)) {
+  // 使用 path-is-inside 库检查路径是否在允许的目录内
+  // 这比简单的 startsWith 更可靠，能处理各种边界情况
+  if (!pathIsInside(resolvedPath, resolvedBaseDir)) {
     return { valid: false, error: '无效的文件路径：路径超出允许的目录范围' }
   }
 

@@ -17,35 +17,19 @@ router.post('/register', async (req, res) => {
 
     // 基本验证
     if (!username || !email || !password) {
-      return res.status(400).json({
-        code: 400,
-        message: '用户名、邮箱和密码不能为空',
-        data: null
-      })
+      return res.error('用户名、邮箱和密码不能为空', 400)
     }
 
     if (password.length < 6) {
-      return res.status(400).json({
-        code: 400,
-        message: '密码至少6个字符',
-        data: null
-      })
+      return res.error('密码至少6个字符', 400)
     }
 
     const result = await UserService.register({ username, email, password, role })
 
-    res.status(201).json({
-      code: 201,
-      message: '注册成功',
-      data: result
-    })
+    res.success(result, '注册成功', 201)
   } catch (error) {
     console.error('注册失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '注册失败',
-      data: null
-    })
+    res.error(error.message || '注册失败', 400)
   }
 })
 
@@ -58,27 +42,15 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body
 
     if (!username || !password) {
-      return res.status(400).json({
-        code: 400,
-        message: '用户名和密码不能为空',
-        data: null
-      })
+      return res.error('用户名和密码不能为空', 400)
     }
 
     const result = await UserService.login({ username, password })
 
-    res.json({
-      code: 200,
-      message: '登录成功',
-      data: result
-    })
+    res.success(result, '登录成功')
   } catch (error) {
     console.error('登录失败:', error)
-    res.status(401).json({
-      code: 401,
-      message: error.message || '登录失败',
-      data: null
-    })
+    res.error(error.message || '登录失败', 401)
   }
 })
 
@@ -89,18 +61,10 @@ router.post('/login', async (req, res) => {
 router.post('/profile', authenticateToken, refreshTokenIfNeeded, async (req, res) => {
   try {
     const user = req.user.getPublicProfile()
-    res.json({
-      code: 200,
-      message: '获取用户信息成功',
-      data: { user }
-    })
+    res.success({ user }, '获取用户信息成功')
   } catch (error) {
     console.error('获取用户信息失败:', error)
-    res.status(500).json({
-      code: 500,
-      message: '获取用户信息失败',
-      data: null
-    })
+    res.error('获取用户信息失败', 500)
   }
 })
 
@@ -119,18 +83,10 @@ router.post('/update', authenticateToken, refreshTokenIfNeeded, async (req, res)
 
     const user = await UserService.updateUser(userId, updateData)
 
-    res.json({
-      code: 200,
-      message: '更新用户信息成功',
-      data: { user }
-    })
+    res.success({ user }, '更新用户信息成功')
   } catch (error) {
     console.error('更新用户信息失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '更新用户信息失败',
-      data: null
-    })
+    res.error(error.message || '更新用户信息失败', 400)
   }
 })
 
@@ -144,35 +100,19 @@ router.post('/change-password', authenticateToken, refreshTokenIfNeeded, async (
     const { oldPassword, newPassword } = req.body
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({
-        code: 400,
-        message: '旧密码和新密码不能为空',
-        data: null
-      })
+      return res.error('旧密码和新密码不能为空', 400)
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({
-        code: 400,
-        message: '新密码至少6个字符',
-        data: null
-      })
+      return res.error('新密码至少6个字符', 400)
     }
 
     await UserService.changePassword(userId, oldPassword, newPassword)
 
-    res.json({
-      code: 200,
-      message: '密码修改成功',
-      data: null
-    })
+    res.success(null, '密码修改成功')
   } catch (error) {
     console.error('修改密码失败:', error)
-    res.status(400).json({
-      code: 400,
-      message: error.message || '修改密码失败',
-      data: null
-    })
+    res.error(error.message || '修改密码失败', 400)
   }
 })
 
@@ -187,18 +127,10 @@ router.post('/verify', authenticateToken, refreshTokenIfNeeded, async (req, res)
     // authenticateToken 中间件已经验证了 token 并将用户信息添加到 req.user
     const user = req.user.getPublicProfile()
 
-    res.json({
-      code: 200,
-      message: 'Token验证成功',
-      data: { user }
-    })
+    res.success({ user }, 'Token验证成功')
   } catch (error) {
     console.error('Token验证失败:', error)
-    res.status(401).json({
-      code: 401,
-      message: error.message || 'Token验证失败',
-      data: null
-    })
+    res.error(error.message || 'Token验证失败', 401)
   }
 })
 
@@ -224,10 +156,8 @@ router.post('/users', authenticateToken, refreshTokenIfNeeded, requireAdmin, asy
 
     const result = await UserService.getUserList(searchQuery, page, limit)
 
-    res.json({
-      code: 200,
-      message: '获取用户列表成功',
-      data: {
+    res.success(
+      {
         users: result.users,
         list: result.users, // 兼容别名
         total: result.pagination.total,
@@ -235,15 +165,12 @@ router.post('/users', authenticateToken, refreshTokenIfNeeded, requireAdmin, asy
         page: result.pagination.page,
         limit: result.pagination.limit,
         pages: result.pagination.pages
-      }
-    })
+      },
+      '获取用户列表成功'
+    )
   } catch (error) {
     console.error('获取用户列表失败:', error)
-    res.status(500).json({
-      code: 500,
-      message: '获取用户列表失败',
-      data: null
-    })
+    res.error('获取用户列表失败', 500)
   }
 })
 
@@ -262,27 +189,15 @@ router.post(
       const { role } = req.body
 
       if (!role || !['admin', 'user'].includes(role)) {
-        return res.status(400).json({
-          code: 400,
-          message: '角色必须是admin或user',
-          data: null
-        })
+        return res.error('角色必须是admin或user', 400)
       }
 
       const user = await UserService.updateUser(userId, { role })
 
-      res.json({
-        code: 200,
-        message: '更新用户角色成功',
-        data: { user }
-      })
+      res.success({ user }, '更新用户角色成功')
     } catch (error) {
       console.error('更新用户角色失败:', error)
-      res.status(400).json({
-        code: 400,
-        message: error.message || '更新用户角色失败',
-        data: null
-      })
+      res.error(error.message || '更新用户角色失败', 400)
     }
   }
 )
@@ -302,27 +217,15 @@ router.post(
       const { isActive } = req.body
 
       if (typeof isActive !== 'boolean') {
-        return res.status(400).json({
-          code: 400,
-          message: 'isActive必须是布尔值',
-          data: null
-        })
+        return res.error('isActive必须是布尔值', 400)
       }
 
       const user = await UserService.updateUser(userId, { isActive })
 
-      res.json({
-        code: 200,
-        message: `用户已${isActive ? '启用' : '禁用'}`,
-        data: { user }
-      })
+      res.success({ user }, `用户已${isActive ? '启用' : '禁用'}`)
     } catch (error) {
       console.error('更新用户状态失败:', error)
-      res.status(400).json({
-        code: 400,
-        message: error.message || '更新用户状态失败',
-        data: null
-      })
+      res.error(error.message || '更新用户状态失败', 400)
     }
   }
 )
@@ -346,18 +249,10 @@ router.post(
 
       const user = await UserService.updateUser(userId, updateData)
 
-      res.json({
-        code: 200,
-        message: '更新用户信息成功',
-        data: { user }
-      })
+      res.success({ user }, '更新用户信息成功')
     } catch (error) {
       console.error('更新用户信息失败:', error)
-      res.status(400).json({
-        code: 400,
-        message: error.message || '更新用户信息失败',
-        data: null
-      })
+      res.error(error.message || '更新用户信息失败', 400)
     }
   }
 )
@@ -377,27 +272,15 @@ router.post(
 
       // 不能删除自己
       if (userId === req.user._id.toString()) {
-        return res.status(400).json({
-          code: 400,
-          message: '不能删除自己的账户',
-          data: null
-        })
+        return res.error('不能删除自己的账户', 400)
       }
 
       await UserService.deleteUser(userId)
 
-      res.json({
-        code: 200,
-        message: '用户删除成功',
-        data: null
-      })
+      res.success(null, '用户删除成功')
     } catch (error) {
       console.error('删除用户失败:', error)
-      res.status(400).json({
-        code: 400,
-        message: error.message || '删除用户失败',
-        data: null
-      })
+      res.error(error.message || '删除用户失败', 400)
     }
   }
 )

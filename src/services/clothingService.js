@@ -14,12 +14,25 @@ const create = async (data) => {
 // 查询服装列表（支持分页和条件查询）
 const find = async (query, page = 1, limit = 10) => {
   try {
-    const skip = (page - 1) * limit
-    const docs = await ClothingModel.find(query)
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 }) // 按创建时间倒序
-    return docs
+    const pageNum = Math.max(1, parseInt(page, 10))
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10))) // 限制最大每页100条
+    const skip = (pageNum - 1) * limitNum
+
+    // 先获取总数，再查询数据（优化性能）
+    const [docs, total] = await Promise.all([
+      ClothingModel.find(query).skip(skip).limit(limitNum).sort({ createdAt: -1 }), // 按创建时间倒序
+      ClothingModel.countDocuments(query)
+    ])
+
+    return {
+      list: docs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    }
   } catch (error) {
     console.error('Error finding clothing items:', error)
     throw new Error('Error finding clothing items')
@@ -69,19 +82,19 @@ const restock = async (id, quantity) => {
     if (!clothing) {
       throw new Error('Clothing item not found')
     }
-    
+
     // 更新补货数量和剩余数量
     const updatedClothing = await ClothingModel.findByIdAndUpdate(
       id,
-      { 
-        $inc: { 
+      {
+        $inc: {
           restockQuantity: quantity,
-          remainingQuantity: quantity 
+          remainingQuantity: quantity
         }
       },
       { new: true, runValidators: true }
     )
-    
+
     return updatedClothing
   } catch (error) {
     console.error('Error restocking clothing item:', error)
@@ -102,20 +115,26 @@ const getInventoryStats = async () => {
           totalSoldQuantity: { $sum: '$soldQuantity' },
           totalProfit: { $sum: '$profit' },
           totalRevenue: { $sum: { $multiply: ['$sellingPrice', '$soldQuantity'] } },
-          totalCost: { $sum: { $multiply: ['$purchasePrice', { $add: ['$purchaseQuantity', '$restockQuantity'] }] } }
+          totalCost: {
+            $sum: {
+              $multiply: ['$purchasePrice', { $add: ['$purchaseQuantity', '$restockQuantity'] }]
+            }
+          }
         }
       }
     ])
-    
-    return stats[0] || {
-      totalItems: 0,
-      totalPurchaseQuantity: 0,
-      totalRemainingQuantity: 0,
-      totalSoldQuantity: 0,
-      totalProfit: 0,
-      totalRevenue: 0,
-      totalCost: 0
-    }
+
+    return (
+      stats[0] || {
+        totalItems: 0,
+        totalPurchaseQuantity: 0,
+        totalRemainingQuantity: 0,
+        totalSoldQuantity: 0,
+        totalProfit: 0,
+        totalRevenue: 0,
+        totalCost: 0
+      }
+    )
   } catch (error) {
     console.error('Error getting inventory stats:', error)
     throw new Error('Error getting inventory stats')
@@ -131,4 +150,3 @@ module.exports = {
   restock,
   getInventoryStats
 }
-

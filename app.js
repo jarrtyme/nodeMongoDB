@@ -14,10 +14,7 @@ if (process.env.NODE_ENV !== 'test') {
   connectDB()
 }
 
-const {
-  responseMiddleware,
-  methodCheckMiddleware
-} = require('./src/middlewares/responseMiddleware')
+const { responseMiddleware } = require('./src/middlewares/responseMiddleware')
 
 const clothingRoutes = require('./src/routes/clothingRoutes') // 引入服装路由文件
 const uploadRoutes = require('./src/routes/uploadRoutes') // 引入图片上传路由文件

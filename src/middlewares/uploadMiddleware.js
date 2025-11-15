@@ -2,6 +2,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const { uploadsDir } = require('../config/paths')
+const { getFileType: getFileTypeUtil, getFileTypeFromExtension } = require('../utils/fileTypeUtils')
 
 // 基础上传目录
 const baseUploadDir = uploadsDir
@@ -13,52 +14,19 @@ if (!fs.existsSync(baseUploadDir)) {
 
 // 根据文件类型获取存储目录
 function getStorageDir(mimetype, originalname) {
-  // 根据 MIME 类型和扩展名判断文件类型
   const ext = path.extname(originalname).toLowerCase()
+  const fileType = getFileTypeUtil(mimetype, ext)
 
-  // 图片类型
-  if (
-    mimetype.startsWith('image/') ||
-    ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'].includes(ext)
-  ) {
-    return path.join(baseUploadDir, 'images')
+  const typeToDirMap = {
+    image: 'images',
+    video: 'videos',
+    document: 'documents',
+    archive: 'archives',
+    text: 'texts',
+    other: 'others'
   }
-  // 视频类型
-  if (
-    mimetype.startsWith('video/') ||
-    ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.wmv', '.flv', '.mkv'].includes(ext)
-  ) {
-    return path.join(baseUploadDir, 'videos')
-  }
-  // 文档类型
-  if (
-    mimetype.includes('pdf') ||
-    mimetype.includes('document') ||
-    mimetype.includes('word') ||
-    mimetype.includes('spreadsheet') ||
-    mimetype.includes('excel') ||
-    mimetype.includes('presentation') ||
-    mimetype.includes('powerpoint') ||
-    ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].includes(ext)
-  ) {
-    return path.join(baseUploadDir, 'documents')
-  }
-  // 压缩包类型
-  if (
-    mimetype.includes('zip') ||
-    mimetype.includes('rar') ||
-    mimetype.includes('7z') ||
-    mimetype.includes('compressed') ||
-    ['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)
-  ) {
-    return path.join(baseUploadDir, 'archives')
-  }
-  // 文本类型
-  if (mimetype.startsWith('text/') || ['.txt', '.csv', '.json', '.xml', '.md'].includes(ext)) {
-    return path.join(baseUploadDir, 'texts')
-  }
-  // 其他类型
-  return path.join(baseUploadDir, 'others')
+
+  return path.join(baseUploadDir, typeToDirMap[fileType] || 'others')
 }
 
 // 配置存储（支持按文件类型分类）
@@ -84,7 +52,7 @@ const storage = multer.diskStorage({
 const generalFileFilter = (req, file, cb) => {
   // 允许的文件类型（包括视频）
   const allowedTypes =
-    /jpeg|jpg|png|gif|webp|bmp|svg|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|csv|json|xml|md|mp4|webm|ogg|mov|avi|wmv|flv|mkv/
+    /jpeg|jpg|png|gif|webp|bmp|svg|ico|tiff|tif|heic|heif|avif|jfif|jp2|jpx|j2k|j2c|psd|raw|cr2|nef|orf|sr2|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|csv|json|xml|md|mp4|webm|ogg|mov|avi|wmv|flv|mkv/
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
 
   if (extname) {
@@ -92,7 +60,7 @@ const generalFileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        '不支持的文件类型。允许的类型：图片(jpg,png,gif,webp,bmp,svg)、视频(mp4,webm,ogg,mov,avi,wmv,flv,mkv)、文档(pdf,doc,docx,xls,xlsx,ppt,pptx)、压缩包(zip,rar,7z,tar,gz)、文本(txt,csv,json,xml,md)'
+        '不支持的文件类型。允许的类型：图片(jpg,png,gif,webp,bmp,svg,ico,tiff,heic,avif等)、视频(mp4,webm,ogg,mov,avi,wmv,flv,mkv)、文档(pdf,doc,docx,xls,xlsx,ppt,pptx)、压缩包(zip,rar,7z,tar,gz)、文本(txt,csv,json,xml,md)'
       ),
       false
     )
@@ -124,29 +92,9 @@ const fileUpload = multer({
   }
 })
 
-// 识别文件类型
+// 识别文件类型（使用工具函数）
 const getFileType = (mimetype) => {
-  if (mimetype.startsWith('image/')) return 'image'
-  if (mimetype.startsWith('video/')) return 'video'
-  if (
-    mimetype.includes('pdf') ||
-    mimetype.includes('document') ||
-    mimetype.includes('word') ||
-    mimetype.includes('spreadsheet') ||
-    mimetype.includes('excel') ||
-    mimetype.includes('presentation') ||
-    mimetype.includes('powerpoint')
-  )
-    return 'document'
-  if (
-    mimetype.includes('zip') ||
-    mimetype.includes('rar') ||
-    mimetype.includes('7z') ||
-    mimetype.includes('compressed')
-  )
-    return 'archive'
-  if (mimetype.startsWith('text/')) return 'text'
-  return 'other'
+  return getFileTypeUtil(mimetype)
 }
 
 // 错误处理中间件

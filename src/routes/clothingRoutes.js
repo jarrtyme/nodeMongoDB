@@ -27,8 +27,8 @@ router.post('/create', async (req, res) => {
 router.post('/find', async (req, res) => {
   const { page = 1, limit = 10, ...query } = req.body
   try {
-    const clothingItems = await ClothingService.find(query, page, limit)
-    res.success(clothingItems, 'Clothing items retrieved successfully')
+    const result = await ClothingService.find(query, page, limit)
+    res.success(result, 'Clothing items retrieved successfully')
   } catch (error) {
     console.error('Error finding clothing items:', error)
     res.error('Error finding clothing items', 500)

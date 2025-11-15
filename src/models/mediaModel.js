@@ -83,6 +83,12 @@ MediaSchema.pre('findOneAndUpdate', function (next) {
   next()
 })
 
+// 添加索引以优化查询性能
+MediaSchema.index({ type: 1, createdAt: -1 }) // 复合索引：按类型和创建时间排序（最常用）
+MediaSchema.index({ 'descriptions.text': 1 }) // 描述文本索引：用于描述搜索（正则查询）
+MediaSchema.index({ url: 1 }, { unique: true }) // URL索引：用于URL查找，唯一索引
+MediaSchema.index({ createdAt: -1 }) // 创建时间索引：用于排序
+
 // 创建 Mongoose 模型实例
 const MediaModel = mongoose.model('Media', MediaSchema)
 
