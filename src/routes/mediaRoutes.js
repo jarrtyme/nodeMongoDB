@@ -6,26 +6,11 @@ const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/auth
 const { addFileUrl } = require('../utils/fileUrl')
 const { normalizeUrlForStorage } = require('../utils/urlUtils')
 
-// 所有媒体库路由都需要鉴权，并支持无感刷新 token（除了 /list 路由）
-router.use((req, res, next) => {
-  // 排除 /list 路由，不需要鉴权
-  if (req.path === '/list' && req.method === 'POST') {
-    return next()
-  }
-  // 其他路由需要鉴权
-  authenticateToken(req, res, next)
-})
+// 所有媒体库路由都需要鉴权，并支持无感刷新 token
+router.use(authenticateToken)
+router.use(refreshTokenIfNeeded)
 
-router.use((req, res, next) => {
-  // 排除 /list 路由，不需要刷新 token
-  if (req.path === '/list' && req.method === 'POST') {
-    return next()
-  }
-  // 其他路由需要刷新 token
-  refreshTokenIfNeeded(req, res, next)
-})
-
-// 查询媒体列表（支持分页和条件查询）- 无需鉴权
+// 查询媒体列表（支持分页和条件查询）- 需要鉴权
 router.post('/list', async (req, res) => {
   try {
     const { page = 1, limit = 10, type, description, ...query } = req.body

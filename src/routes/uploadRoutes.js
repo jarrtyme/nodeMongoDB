@@ -27,24 +27,9 @@ const MediaService = require('../services/mediaService')
 const FileListService = require('../services/fileListService')
 const { publicDir, uploadsDir } = require('../config/paths')
 
-// 所有上传路由都需要鉴权，并支持无感刷新 token（除了 /list 路由）
-router.use((req, res, next) => {
-  // 排除 /list 路由，不需要鉴权
-  if (req.path === '/list' && req.method === 'POST') {
-    return next()
-  }
-  // 其他路由需要鉴权
-  authenticateToken(req, res, next)
-})
-
-router.use((req, res, next) => {
-  // 排除 /list 路由，不需要刷新 token
-  if (req.path === '/list' && req.method === 'POST') {
-    return next()
-  }
-  // 其他路由需要刷新 token
-  refreshTokenIfNeeded(req, res, next)
-})
+// 所有上传路由都需要鉴权，并支持无感刷新 token
+router.use(authenticateToken)
+router.use(refreshTokenIfNeeded)
 
 /**
  * 统一上传接口
@@ -276,12 +261,13 @@ function deleteSingleFile(filename, filePath) {
 }
 
 /**
- * 获取上传的文件列表（所有文件类型）
+ * 获取上传的文件列表（所有文件类型）- 需要鉴权
  * POST /upload/list
  * 返回所有已上传的文件信息（包括图片、文档、压缩包等）
  * 支持分类目录扫描
  * 支持分页查询和文件类型筛选
  * 支持描述模糊查询
+ * 会关联查询媒体库信息（mediaId、isAddedToLibrary、descriptions）
  *
  * 请求参数：
  * - page: 页码（默认1）

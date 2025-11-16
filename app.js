@@ -20,6 +20,8 @@ const clothingRoutes = require('./src/routes/clothingRoutes') // 引入服装路
 const uploadRoutes = require('./src/routes/uploadRoutes') // 引入图片上传路由文件
 const authRoutes = require('./src/routes/authRoutes') // 引入认证路由文件
 const mediaRoutes = require('./src/routes/mediaRoutes') // 引入媒体库路由文件
+const pageComponentRoutes = require('./src/routes/pageComponentRoutes') // 引入页面组件路由文件
+const pageRoutes = require('./src/routes/pageRoutes') // 引入页面路由文件
 
 const app = express()
 
@@ -54,6 +56,8 @@ app.use('/auth', authRoutes)
 app.use('/clothing', clothingRoutes)
 app.use('/upload', uploadRoutes)
 app.use('/media', mediaRoutes)
+app.use('/page-component', pageComponentRoutes)
+app.use('/page', pageRoutes)
 
 // catch 404 and forward to error handler
 app.use('*', function (req, res, next) {
