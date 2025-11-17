@@ -4,6 +4,27 @@ const router = express.Router()
 const PageComponentService = require('../services/pageComponentService')
 const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/authMiddleware')
 
+// ========== 公开访问接口（无需鉴权） ==========
+
+// 根据ID数组查询已启用的页面组件（公开访问）
+router.post('/public/findByIds', async (req, res) => {
+  try {
+    const { ids } = req.body
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.error('IDs array is required and cannot be empty', 400)
+    }
+
+    const components = await PageComponentService.findPublicByIds(ids)
+
+    res.success(components, 'Public page components retrieved successfully')
+  } catch (error) {
+    console.error('Error finding public page components by IDs:', error)
+    res.error('Error finding public page components by IDs', 500)
+  }
+})
+
+// ========== 需要鉴权的管理接口 ==========
+
 // 所有页面组件路由都需要鉴权，并支持无感刷新 token
 router.use(authenticateToken)
 router.use(refreshTokenIfNeeded)

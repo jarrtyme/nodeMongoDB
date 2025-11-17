@@ -140,6 +140,44 @@ const batchRemove = async (ids) => {
   }
 }
 
+// 根据ID数组批量查询已启用的页面组件（公开访问，无需鉴权）
+const findPublicByIds = async (ids) => {
+  try {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return []
+    }
+
+    // 查询已启用且ID在数组中的组件
+    const docs = await PageComponentModel.find({
+      _id: { $in: ids },
+      isActive: true
+    })
+      .lean()
+      .maxTimeMS(30000)
+      .exec()
+
+    // 按照输入ID的顺序排序，保持顺序一致性
+    const componentMap = new Map()
+    docs.forEach((doc) => {
+      componentMap.set(String(doc._id), doc)
+    })
+
+    // 按照输入的ID顺序返回组件数组
+    const orderedComponents = []
+    ids.forEach((id) => {
+      const idStr = String(id)
+      if (componentMap.has(idStr)) {
+        orderedComponents.push(componentMap.get(idStr))
+      }
+    })
+
+    return orderedComponents
+  } catch (error) {
+    console.error('Error finding public page components by IDs:', error)
+    throw new Error('Error finding public page components by IDs')
+  }
+}
+
 module.exports = {
   create,
   find,
@@ -147,5 +185,6 @@ module.exports = {
   findById,
   update,
   remove,
-  batchRemove
+  batchRemove,
+  findPublicByIds
 }

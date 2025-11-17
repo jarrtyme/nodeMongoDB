@@ -63,9 +63,6 @@ app.use('/page', pageRoutes)
 app.use('*', function (req, res, next) {
   next(createError(404))
 })
-app.use((req, res) => {
-  res.status(405).json({ success: false, message: 'Method Not Allowed' })
-})
 
 // error handler
 app.use(function (err, req, res, next) {

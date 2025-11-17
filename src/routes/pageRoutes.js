@@ -7,9 +7,9 @@ const { authenticateToken, refreshTokenIfNeeded } = require('../middlewares/auth
 // ========== 公开访问接口（无需鉴权） ==========
 
 // 查询已发布的页面列表（公开访问）
-router.get('/public/list', async (req, res) => {
+router.post('/public/list', async (req, res) => {
   try {
-    const { page = 1, limit = 10, name } = req.query
+    const { page = 1, limit = 10, name } = req.body
 
     // 限制分页参数，防止查询过大
     const pageNum = Math.max(1, parseInt(page, 10))
@@ -52,9 +52,9 @@ router.get('/public/list', async (req, res) => {
 })
 
 // 根据ID查询单个已发布的页面（公开访问）
-router.get('/public/:id', async (req, res) => {
+router.post('/public/findById', async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.body
     if (!id) {
       return res.error('ID is required', 400)
     }
