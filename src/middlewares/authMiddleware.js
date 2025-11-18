@@ -104,9 +104,15 @@ const requireRole = (roles) => {
 
 /**
  * 管理员权限中间件
- * 只有管理员可以访问
+ * 只有管理员和超级管理员可以访问
  */
-const requireAdmin = requireRole('admin')
+const requireAdmin = requireRole(['admin', 'super_admin'])
+
+/**
+ * 超级管理员权限中间件
+ * 只有超级管理员可以访问
+ */
+const requireSuperAdmin = requireRole('super_admin')
 
 /**
  * 生成JWT token
@@ -169,6 +175,7 @@ module.exports = {
   authenticateToken,
   requireRole,
   requireAdmin,
+  requireSuperAdmin,
   generateToken,
   verifyToken,
   refreshTokenIfNeeded,

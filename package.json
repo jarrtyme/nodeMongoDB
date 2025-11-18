@@ -9,7 +9,9 @@
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",
     "test:upload": "NODE_ENV=test jest tests/upload.test.js",
-    "prod": "NODE_ENV=production node -r dotenv/config ./bin/www dotenv_config_path=.env.production"
+    "prod": "NODE_ENV=production node -r dotenv/config ./bin/www dotenv_config_path=.env.production",
+    "create:super-admin": "node scripts/createSuperAdmin.js",
+    "list:super-admins": "node scripts/listSuperAdmins.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

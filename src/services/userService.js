@@ -15,6 +15,11 @@ class UserService {
     try {
       const { username, email, password, role = 'user' } = userData
 
+      // 安全检查：不允许注册 super_admin
+      if (role === 'super_admin') {
+        throw new Error('不能注册超级管理员角色')
+      }
+
       // 检查用户名是否已存在
       const existingUser = await UserModel.findOne({
         $or: [{ username }, { email }]
@@ -123,7 +128,7 @@ class UserService {
    */
   static async updateUser(userId, updateData) {
     try {
-      const { username, email, avatar, role, isActive } = updateData
+      const { username, email, avatar, role, isActive, vipLevel, menuPermissions } = updateData
 
       // 如果更新用户名，检查是否已被其他用户使用
       if (username !== undefined) {
@@ -154,6 +159,8 @@ class UserService {
       if (avatar !== undefined) updateFields.avatar = avatar
       if (role !== undefined) updateFields.role = role
       if (isActive !== undefined) updateFields.isActive = isActive
+      if (vipLevel !== undefined) updateFields.vipLevel = vipLevel
+      if (menuPermissions !== undefined) updateFields.menuPermissions = menuPermissions
 
       const user = await UserModel.findByIdAndUpdate(userId, updateFields, {
         new: true,

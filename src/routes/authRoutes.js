@@ -24,6 +24,16 @@ router.post('/register', async (req, res) => {
       return res.error('密码至少6个字符', 400)
     }
 
+    // 限制注册：不允许注册 super_admin 角色
+    if (role === 'super_admin') {
+      return res.error('不能注册超级管理员角色', 400)
+    }
+
+    // 如果指定了角色，验证是否有效（但不允许 super_admin）
+    if (role && !['admin', 'vip', 'user'].includes(role)) {
+      return res.error('无效的角色类型', 400)
+    }
+
     const result = await UserService.register({ username, email, password, role })
 
     res.success(result, '注册成功', 201)
@@ -177,6 +187,7 @@ router.post('/users', authenticateToken, refreshTokenIfNeeded, requireAdmin, asy
 /**
  * 更新用户角色（仅管理员）
  * POST /auth/users/:userId/role
+ * 注意：只有 super_admin 可以将用户升级为 super_admin
  */
 router.post(
   '/users/:userId/role',
@@ -187,9 +198,15 @@ router.post(
     try {
       const { userId } = req.params
       const { role } = req.body
+      const currentUser = req.user
 
-      if (!role || !['admin', 'user'].includes(role)) {
-        return res.error('角色必须是admin或user', 400)
+      if (!role || !['super_admin', 'admin', 'vip', 'user'].includes(role)) {
+        return res.error('角色必须是super_admin、admin、vip或user', 400)
+      }
+
+      // 安全检查：只有 super_admin 可以将用户升级为 super_admin
+      if (role === 'super_admin' && currentUser.role !== 'super_admin') {
+        return res.error('只有超级管理员可以将用户升级为超级管理员', 403)
       }
 
       const user = await UserService.updateUser(userId, { role })

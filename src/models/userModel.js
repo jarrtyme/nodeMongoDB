@@ -49,9 +49,21 @@ const UserSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ['admin', 'user'],
+      enum: ['super_admin', 'admin', 'vip', 'user'],
       default: 'user'
-    }, // 角色 - 管理员或普通用户
+    }, // 角色 - 超级管理员、管理员、VIP用户、普通用户
+
+    vipLevel: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 10
+    }, // VIP等级 - 仅VIP用户使用，0表示非VIP用户
+
+    menuPermissions: {
+      type: [String],
+      default: []
+    }, // 菜单权限 - 存储允许访问的菜单key列表
 
     isActive: {
       type: Boolean,
@@ -141,6 +153,8 @@ UserSchema.methods.getPublicProfile = function () {
     email: this.email,
     avatar: this.avatar,
     role: this.role,
+    vipLevel: this.vipLevel,
+    menuPermissions: this.menuPermissions,
     isActive: this.isActive,
     lastLogin: this.lastLogin,
     createdAt: this.createdAt
