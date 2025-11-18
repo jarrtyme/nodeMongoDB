@@ -22,6 +22,7 @@ const authRoutes = require('./src/routes/authRoutes') // 引入认证路由文�
 const mediaRoutes = require('./src/routes/mediaRoutes') // 引入媒体库路由文件
 const pageComponentRoutes = require('./src/routes/pageComponentRoutes') // 引入页面组件路由文件
 const pageRoutes = require('./src/routes/pageRoutes') // 引入页面路由文件
+const settingsRoutes = require('./src/routes/settingsRoutes') // 引入系统设置路由文件
 
 const app = express()
 
@@ -58,6 +59,7 @@ app.use('/upload', uploadRoutes)
 app.use('/media', mediaRoutes)
 app.use('/page-component', pageComponentRoutes)
 app.use('/page', pageRoutes)
+app.use('/settings', settingsRoutes)
 
 // catch 404 and forward to error handler
 app.use('*', function (req, res, next) {

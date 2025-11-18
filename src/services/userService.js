@@ -38,7 +38,7 @@ class UserService {
       })
 
       const savedUser = await user.save()
-      
+
       // 生成JWT token
       const token = generateToken(savedUser)
 
@@ -63,10 +63,7 @@ class UserService {
 
       // 查找用户（支持用户名或邮箱登录）
       const user = await UserModel.findOne({
-        $or: [
-          { username },
-          { email: username }
-        ]
+        $or: [{ username }, { email: username }]
       })
 
       if (!user) {
@@ -126,20 +123,42 @@ class UserService {
    */
   static async updateUser(userId, updateData) {
     try {
-      const { username, email, role, isActive } = updateData
+      const { username, email, avatar, role, isActive } = updateData
+
+      // 如果更新用户名，检查是否已被其他用户使用
+      if (username !== undefined) {
+        const existingUser = await UserModel.findOne({
+          username,
+          _id: { $ne: userId }
+        })
+        if (existingUser) {
+          throw new Error('用户名已被使用')
+        }
+      }
+
+      // 如果更新邮箱，检查是否已被其他用户使用
+      if (email !== undefined) {
+        const existingUser = await UserModel.findOne({
+          email: email.toLowerCase(),
+          _id: { $ne: userId }
+        })
+        if (existingUser) {
+          throw new Error('邮箱已被注册')
+        }
+      }
 
       // 构建更新对象
       const updateFields = {}
       if (username !== undefined) updateFields.username = username
-      if (email !== undefined) updateFields.email = email
+      if (email !== undefined) updateFields.email = email.toLowerCase()
+      if (avatar !== undefined) updateFields.avatar = avatar
       if (role !== undefined) updateFields.role = role
       if (isActive !== undefined) updateFields.isActive = isActive
 
-      const user = await UserModel.findByIdAndUpdate(
-        userId,
-        updateFields,
-        { new: true, runValidators: true }
-      )
+      const user = await UserModel.findByIdAndUpdate(userId, updateFields, {
+        new: true,
+        runValidators: true
+      })
 
       if (!user) {
         throw new Error('用户不存在')
@@ -243,8 +262,11 @@ class UserService {
   static async validateToken(token) {
     try {
       const jwt = require('jsonwebtoken')
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production')
-      
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
+      )
+
       const user = await UserModel.findById(decoded.userId)
       if (!user || !user.isAccountActive()) {
         throw new Error('用户不存在或已被禁用')
