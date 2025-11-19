@@ -65,6 +65,12 @@ const UserSchema = new mongoose.Schema(
       default: []
     }, // 菜单权限 - 存储允许访问的菜单key列表
 
+    menuPermissionMode: {
+      type: String,
+      enum: ['default', 'custom', 'template'],
+      default: 'default'
+    }, // 菜单权限模式 - default 使用角色默认, custom 使用自定义数组, template 来源于模板
+
     isActive: {
       type: Boolean,
       default: true
@@ -155,6 +161,7 @@ UserSchema.methods.getPublicProfile = function () {
     role: this.role,
     vipLevel: this.vipLevel,
     menuPermissions: this.menuPermissions,
+    menuPermissionMode: this.menuPermissionMode,
     isActive: this.isActive,
     lastLogin: this.lastLogin,
     createdAt: this.createdAt

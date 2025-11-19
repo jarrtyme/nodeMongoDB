@@ -1,4 +1,5 @@
 const UserModel = require('../models/userModel')
+const MenuPermissionTemplateModel = require('../models/menuPermissionTemplateModel')
 
 /**
  * 菜单权限服务
@@ -15,7 +16,8 @@ class MenuPermissionService {
     PAGES: 'pages',
     TOOLS: 'tools',
     UPLOAD: 'upload',
-    SETTINGS: 'settings'
+    SETTINGS: 'settings',
+    MENU_PERMISSION: 'menu-permission'
   }
 
   // 定义默认菜单权限配置（根据角色）
@@ -29,7 +31,8 @@ class MenuPermissionService {
       'pages',
       'tools',
       'upload',
-      'settings'
+      'settings',
+      'menu-permission'
     ],
     admin: [
       'dashboard',
@@ -39,7 +42,8 @@ class MenuPermissionService {
       'page-components',
       'pages',
       'tools',
-      'upload'
+      'upload',
+      'menu-permission'
       // 注意：admin 默认不包含 settings
     ],
     vip: [], // VIP用户权限根据VIP等级和menuPermissions字段动态分配
@@ -65,51 +69,119 @@ class MenuPermissionService {
   }
 
   /**
-   * 获取用户的菜单权限
-   * @param {Object} user - 用户对象
-   * @returns {Array<string>} - 菜单权限列表
+   * 获取默认菜单权限（不考虑自定义）
+   * @param {Object} user
+   * @returns {Array<string>}
    */
-  static getUserMenuPermissions(user) {
+  static getDefaultMenuPermissions(user) {
     const role = user.role || 'user'
     const vipLevel = user.vipLevel || 0
-    const customPermissions = user.menuPermissions || []
 
-    // 超级管理员：所有权限
     if (role === 'super_admin') {
       return this.DEFAULT_PERMISSIONS.super_admin
     }
 
-    // 管理员：默认权限
     if (role === 'admin') {
       return this.DEFAULT_PERMISSIONS.admin
     }
 
-    // VIP用户：根据VIP等级和自定义权限
     if (role === 'vip') {
-      // 如果用户有自定义权限，优先使用自定义权限
-      if (customPermissions && customPermissions.length > 0) {
-        return customPermissions
-      }
-
-      // 否则根据VIP等级获取默认权限
       if (vipLevel >= 5) {
         return this.VIP_LEVEL_PERMISSIONS[5]
-      } else if (vipLevel >= 4) {
+      }
+      if (vipLevel >= 4) {
         return this.VIP_LEVEL_PERMISSIONS[4]
-      } else if (vipLevel >= 3) {
+      }
+      if (vipLevel >= 3) {
         return this.VIP_LEVEL_PERMISSIONS[3]
-      } else if (vipLevel >= 2) {
+      }
+      if (vipLevel >= 2) {
         return this.VIP_LEVEL_PERMISSIONS[2]
-      } else if (vipLevel >= 1) {
+      }
+      if (vipLevel >= 1) {
         return this.VIP_LEVEL_PERMISSIONS[1]
       }
-
-      // 如果没有VIP等级，返回基础权限
       return ['dashboard']
     }
 
-    // 普通用户：只有仪表盘
     return this.DEFAULT_PERMISSIONS.user
+  }
+
+  /**
+   * 获取用户的菜单权限（考虑自定义）
+   * @param {Object} user - 用户对象
+   * @returns {Array<string>} - 菜单权限列表
+   */
+  static getUserMenuPermissions(user) {
+    const defaultPermissions = this.getDefaultMenuPermissions(user)
+    const customPermissions = Array.isArray(user.menuPermissions) ? user.menuPermissions : []
+    const mode = user.menuPermissionMode || 'default'
+
+    if (user.role === 'super_admin') {
+      return defaultPermissions
+    }
+
+    if (mode === 'custom') {
+      return this.normalizeMenuPermissions(customPermissions)
+    }
+
+    if (mode === 'template') {
+      return this.normalizeMenuPermissions(customPermissions)
+    }
+
+    return defaultPermissions
+  }
+
+  /**
+   * 获取指定用户的菜单配置
+   * @param {string} userId
+   * @returns {Promise<Object>}
+   */
+  static async getUserMenuConfig(userId) {
+    const user = await UserModel.findById(userId)
+    if (!user) {
+      throw new Error('用户不存在')
+    }
+
+    const defaultPermissions = this.getDefaultMenuPermissions(user)
+    const customPermissions = Array.isArray(user.menuPermissions) ? user.menuPermissions : []
+    const effectivePermissions = this.getUserMenuPermissions(user)
+
+    return {
+      user: user.getPublicProfile(),
+      defaultPermissions,
+      customPermissions,
+      menuPermissions: effectivePermissions,
+      menuPermissionMode: user.menuPermissionMode || 'default'
+    }
+  }
+
+  static getAllowedMenuKeys() {
+    if (!this.ALLOWED_MENU_KEYS) {
+      const keys = new Set()
+      const collect = (items) => {
+        items.forEach((item) => {
+          keys.add(item.key)
+          if (item.children && item.children.length > 0) {
+            collect(item.children)
+          }
+        })
+      }
+      collect(this.getAllMenuItems())
+      this.ALLOWED_MENU_KEYS = Array.from(keys)
+    }
+    return this.ALLOWED_MENU_KEYS
+  }
+
+  static normalizeMenuPermissions(menuPermissions = []) {
+    const allowedSet = new Set(this.getAllowedMenuKeys())
+    const normalized = []
+    for (const key of menuPermissions) {
+      if (allowedSet.has(key) && !normalized.includes(key)) {
+        normalized.push(key)
+      }
+    }
+    return normalized
   }
 
   /**
@@ -118,13 +190,24 @@ class MenuPermissionService {
    * @param {Array<string>} menuPermissions - 菜单权限列表
    * @returns {Promise<Object>} - 更新后的用户信息
    */
-  static async updateUserMenuPermissions(userId, menuPermissions) {
+  static async updateUserMenuPermissions(userId, menuPermissions, menuPermissionMode) {
     try {
-      const user = await UserModel.findByIdAndUpdate(
-        userId,
-        { menuPermissions },
-        { new: true, runValidators: true }
-      )
+      const normalizedPermissions = this.normalizeMenuPermissions(menuPermissions || [])
+      const normalizedModeInput = ['default', 'custom', 'template'].includes(menuPermissionMode)
+        ? menuPermissionMode
+        : undefined
+      const mode =
+        normalizedModeInput ||
+        (Array.isArray(menuPermissions) && menuPermissions.length > 0 ? 'custom' : 'default')
+
+      const updatePayload =
+        mode === 'default'
+          ? { menuPermissions: [], menuPermissionMode: 'default' }
+          : { menuPermissions: normalizedPermissions, menuPermissionMode: mode }
+      const user = await UserModel.findByIdAndUpdate(userId, updatePayload, {
+        new: true,
+        runValidators: true
+      })
 
       if (!user) {
         throw new Error('用户不存在')
@@ -133,6 +216,126 @@ class MenuPermissionService {
       return user.getPublicProfile()
     } catch (error) {
       console.error('更新用户菜单权限失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 批量更新用户菜单权限
+   * @param {Array<string>} userIds
+   * @param {Array<string>} menuPermissions
+   * @returns {Promise<number>} - 更新数量
+   */
+  static async bulkUpdateUserMenuPermissions(
+    userIds,
+    menuPermissions,
+    menuPermissionMode = 'custom'
+  ) {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return 0
+    }
+
+    const normalizedPermissions = this.normalizeMenuPermissions(menuPermissions || [])
+    const normalizedMode = ['default', 'custom', 'template'].includes(menuPermissionMode)
+      ? menuPermissionMode
+      : 'custom'
+    const isDefaultMode = normalizedMode === 'default'
+    const result = await UserModel.updateMany(
+      { _id: { $in: userIds } },
+      {
+        menuPermissions: isDefaultMode ? [] : normalizedPermissions,
+        menuPermissionMode: isDefaultMode ? 'default' : normalizedMode
+      }
+    )
+    return result.modifiedCount || 0
+  }
+
+  /**
+   * 创建菜单模板
+   */
+  static async createTemplate({ name, description = '', menuPermissions = [] }, operatorId) {
+    if (!name) {
+      throw new Error('模板名称不能为空')
+    }
+
+    const normalizedPermissions = this.normalizeMenuPermissions(menuPermissions)
+    const template = await MenuPermissionTemplateModel.create({
+      name,
+      description,
+      menuPermissions: normalizedPermissions,
+      createdBy: operatorId,
+      updatedBy: operatorId
+    })
+    return template
+  }
+
+  /**
+   * 获取模板列表
+   */
+  static async getTemplates() {
+    const templates = await MenuPermissionTemplateModel.find().sort({ updatedAt: -1 }).lean()
+    return templates
+  }
+
+  /**
+   * 更新模板
+   */
+  static async updateTemplate(templateId, data, operatorId) {
+    const updateData = { ...data }
+    if (data.menuPermissions) {
+      updateData.menuPermissions = this.normalizeMenuPermissions(data.menuPermissions)
+    }
+    updateData.updatedBy = operatorId
+
+    const template = await MenuPermissionTemplateModel.findByIdAndUpdate(templateId, updateData, {
+      new: true,
+      runValidators: true
+    })
+
+    if (!template) {
+      throw new Error('模板不存在')
+    }
+
+    return template
+  }
+
+  /**
+   * 删除模板
+   */
+  static async deleteTemplate(templateId) {
+    const template = await MenuPermissionTemplateModel.findByIdAndDelete(templateId)
+    if (!template) {
+      throw new Error('模板不存在')
+    }
+    return template
+  }
+
+  /**
+   * 应用模板到多个用户
+   */
+  static async applyTemplateToUsers(templateId, userIds = []) {
+    try {
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        throw new Error('请选择要应用的用户')
+      }
+
+      const template = await MenuPermissionTemplateModel.findById(templateId)
+      if (!template) {
+        throw new Error('模板不存在')
+      }
+
+      const normalizedPermissions = this.normalizeMenuPermissions(template.menuPermissions)
+      const result = await UserModel.updateMany(
+        { _id: { $in: userIds } },
+        { menuPermissions: normalizedPermissions, menuPermissionMode: 'template' }
+      )
+
+      return {
+        template,
+        affected: result.modifiedCount || 0
+      }
+    } catch (error) {
+      console.error('应用模板失败:', error)
       throw error
     }
   }
@@ -207,6 +410,12 @@ class MenuPermissionService {
             label: '页面管理',
             path: '/admin/pages',
             description: '管理页面配置，组合多个组件'
+          },
+          {
+            key: 'menu-permission',
+            label: '权限管理',
+            path: '/admin/menu-permission',
+            description: '为不同用户配置可见菜单及模板'
           }
         ]
       },

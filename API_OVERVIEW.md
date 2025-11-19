@@ -159,7 +159,15 @@ npm run create:super-admin <username> <email> <password>
 - **鉴权**: 需要 JWT token
 - **返回**: `{ menuItems: Array }`
 
-### 3. 更新用户菜单权限（管理员）
+### 3. 获取指定用户菜单权限（管理员）
+
+**POST** `/menu-permission/user/:userId/get`
+
+- **功能**: 返回指定用户的默认权限、自定义权限和最终生效的菜单列表
+- **鉴权**: 需要管理员权限
+- **返回**: `{ user, defaultPermissions, customPermissions, menuPermissions }`
+
+### 4. 更新用户菜单权限（管理员）
 
 **POST** `/menu-permission/user/:userId`
 
@@ -168,7 +176,7 @@ npm run create:super-admin <username> <email> <password>
 - **参数**: `{ menuPermissions: string[] }`
 - **返回**: 更新后的用户信息
 
-### 4. 更新用户 VIP 等级（管理员）
+### 5. 更新用户 VIP 等级（管理员）
 
 **POST** `/menu-permission/user/:userId/vip-level`
 
@@ -177,6 +185,49 @@ npm run create:super-admin <username> <email> <password>
 - **参数**: `{ vipLevel: number }` (0-10)
 - **注意**: 设置 VIP 等级后，用户角色会自动更新为 `vip`
 - **返回**: 更新后的用户信息
+
+### 6. 创建权限模板（管理员）
+
+**POST** `/menu-permission/template/create`
+
+- **功能**: 将当前选定的菜单权限保存为模板
+- **鉴权**: 需要管理员权限
+- **参数**: `{ name, description?, menuPermissions: string[] }`
+- **返回**: 新建的模板
+
+### 7. 获取权限模板列表（管理员）
+
+**POST** `/menu-permission/template/list`
+
+- **功能**: 获取所有可用的菜单权限模板
+- **鉴权**: 需要管理员权限
+- **返回**: `{ templates: [] }`
+
+### 8. 更新权限模板（管理员）
+
+**POST** `/menu-permission/template/:templateId/update`
+
+- **功能**: 更新模板名称、描述或菜单列表
+- **鉴权**: 需要管理员权限
+- **参数**: `{ name?, description?, menuPermissions? }`
+- **返回**: 更新后的模板
+
+### 9. 删除权限模板（超级管理员）
+
+**POST** `/menu-permission/template/:templateId/delete`
+
+- **功能**: 删除指定模板
+- **鉴权**: 需要超级管理员权限
+- **返回**: 操作结果
+
+### 10. 批量应用模板（管理员）
+
+**POST** `/menu-permission/template/:templateId/apply`
+
+- **功能**: 将模板应用到多个用户
+- **鉴权**: 需要管理员权限
+- **参数**: `{ userIds: string[] }`
+- **返回**: `{ affected: number }`
 
 ## 服装管理 API (`/clothing`)
 
